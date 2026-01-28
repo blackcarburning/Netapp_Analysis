@@ -1,0 +1,2060 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ONTAP CLI Delimited → XLSX Exporter (Offline + Charts)</title>
+  <style>
+    :root { --bg:#0b1020; --card:#121a33; --text:#e9eefc; --muted:#a9b4d6; --accent:#7aa2ff; --border:#23305a; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background: linear-gradient(180deg, #070a14, var(--bg));
+      color: var(--text);
+    }
+    header { padding: 26px 18px 12px; max-width: 1200px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 20px; }
+    p { margin: 6px 0; color: var(--muted); line-height: 1.35; }
+    .grid {
+      max-width: 1200px; margin: 0 auto; padding: 12px 18px 28px;
+      display: grid; grid-template-columns: 390px 1fr; gap: 14px;
+    }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: rgba(18,26,51,0.92);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 10px 22px rgba(0,0,0,0.35);
+    }
+    .card h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: #cfe0ff; }
+    label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 6px; }
+    input[type="text"], input[type="number"], select, textarea {
+      width: 100%;
+      background: #0c132b;
+      color: var(--text);
+      border: 1px solid #22305a;
+      border-radius: 10px;
+      padding: 10px 10px;
+      outline: none;
+    }
+    textarea {
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 12px; line-height: 1.4;
+    }
+    .out { min-height: 240px; }
+    .paste { min-height: 160px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    .btns { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+    button {
+      border: 1px solid #2b3a6a;
+      background: linear-gradient(180deg, #1a2a5c, #121b3b);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    button.secondary { background: transparent; }
+    button:hover { border-color: var(--accent); }
+    .hint {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border: 1px dashed #2b3a6a;
+      border-radius: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .warn {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border: 1px solid #7a3b3b;
+      border-radius: 12px;
+      background: rgba(122,59,59,0.15);
+      color: #ffd7d7;
+      font-size: 12px;
+      line-height: 1.35;
+      display: none;
+    }
+    .section {
+      border: 1px solid #22305a;
+      border-radius: 14px;
+      background: rgba(12,19,43,0.55);
+      padding: 12px;
+      margin-top: 12px;
+    }
+    .section h3 { margin: 0 0 8px; font-size: 14px; }
+    .section .meta { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .mini { font-size: 12px; color: var(--muted); }
+    code.kbd { background: #0c132b; border: 1px solid #22305a; padding: 1px 6px; border-radius: 8px; }
+    canvas { width: 100% !important; height: 320px !important; background: rgba(12,19,43,0.25); border-radius: 12px; border: 1px solid #22305a; }
+    .tiny { font-size: 11px; color: var(--muted); }
+
+    /* Field picker UI */
+    details.picker {
+      margin-top: 8px;
+      border: 1px solid #22305a;
+      border-radius: 12px;
+      background: rgba(12,19,43,0.35);
+      overflow: hidden;
+    }
+    details.picker > summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 10px 12px;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: #cfe0ff;
+      font-size: 12px;
+    }
+    details.picker > summary::-webkit-details-marker { display: none; }
+    .pickerBody {
+      padding: 10px 12px 12px;
+      border-top: 1px solid #22305a;
+    }
+    .pickerTools {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .pickerTools input[type="text"] { padding: 8px 10px; }
+    .pickerTools button { padding: 8px 10px; border-radius: 10px; }
+    .pickerList {
+      max-height: 260px;
+      overflow: auto;
+      border: 1px solid #22305a;
+      border-radius: 12px;
+      padding: 8px;
+      background: rgba(12,19,43,0.25);
+    }
+    .pickItem {
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 8px;
+      padding: 6px 6px;
+      border-radius: 10px;
+      align-items: start;
+    }
+    .pickItem:hover { background: rgba(122,162,255,0.08); }
+    .pickField {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      color: #e9eefc;
+    }
+    .pickDesc {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+      line-height: 1.25;
+    }
+    .pill {
+      font-size: 11px;
+      color: var(--muted);
+      border: 1px solid #22305a;
+      border-radius: 999px;
+      padding: 2px 8px;
+      background: rgba(12,19,43,0.35);
+      white-space: nowrap;
+    }
+
+    /* Units row */
+    .unitsRow {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    /* Config row */
+    .configRow {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+      align-items: center;
+    }
+  </style>
+</head>
+
+<body>
+<header>
+  <h1>ONTAP CLI Delimited Output → XLSX Export (Offline) + Summary Charts</h1>
+  <p>Generate the PuTTY block, run it on the cluster, paste (or import) each command’s output, then export to <code class="kbd">.xlsx</code> or graph key summary fields.</p>
+  <p class="mini">Offline mode: this HTML expects <code class="kbd">xlsx.full.min.js</code> and <code class="kbd">chart.umd.min.js</code> in the same folder.</p>
+</header>
+
+<div class="grid">
+  <!-- LEFT: generator -->
+  <section class="card">
+    <h2>Generate PuTTY block</h2>
+
+    <div class="row">
+      <div>
+        <label for="delimiter">Delimiter used by ONTAP output</label>
+        <select id="delimiter">
+          <option value=",">Comma (,)</option>
+          <option value="|">Pipe (|)</option>
+          <option value=";">Semicolon (;)</option>
+          <option value="\\t">Tab (\\t)</option>
+        </select>
+      </div>
+      <div>
+        <label for="commentPrefix">Section header prefix (comments)</label>
+        <select id="commentPrefix">
+          <option value="#">#</option>
+          <option value="##">##</option>
+          <option value="###">###</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="height:10px"></div>
+
+    <div class="row3">
+      <div><label><input type="checkbox" id="showAllFields" checked /> set -showallfields true</label></div>
+      <div>
+        <label><input type="checkbox" id="unitsRaw" checked /> set -units raw</label>
+        <div class="tiny" style="margin-top:4px;">(This is ONTAP CLI output formatting.)</div>
+      </div>
+      <div><label><input type="checkbox" id="rows0" checked /> rows 0</label></div>
+    </div>
+
+    <div class="unitsRow">
+      <div>
+        <label for="unitsSpecifier">Units specifier (best-effort)</label>
+        <select id="unitsSpecifier">
+          <option value="(none)">(none / don’t include)</option>
+          <option value="raw">raw</option>
+          <option value="kb">kb</option>
+          <option value="mb">mb</option>
+          <option value="gb">gb</option>
+          <option value="tb">tb</option>
+          <option value="pb">pb</option>
+        </select>
+        <div class="tiny" style="margin-top:6px;">
+          If your ONTAP version doesn’t accept these, leave as <span class="kbd">raw</span> (via checkbox) or <span class="kbd">(none)</span>.
+        </div>
+      </div>
+    </div>
+
+    <div style="height:10px"></div>
+
+    <div class="row">
+      <div>
+        <label for="svm">Optional SVM (vserver) filter</label>
+        <input id="svm" type="text" placeholder="e.g. svm_data1 (blank = all)" />
+      </div>
+      <div>
+        <label for="scope">Apply SVM filter</label>
+        <select id="scope">
+          <option value="whereSupported">Only on vserver-aware commands</option>
+          <option value="everywhere">Attempt everywhere (might error)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="hint">
+      Each command below has a field “dropdown” (tick boxes). Your selections are saved locally and restored on reload.
+      The query block updates instantly as you change fields.
+    </div>
+
+    <div class="btns">
+      <button id="btnGenerate">Generate</button>
+      <button id="btnCopy" class="secondary">Copy block</button>
+      <button id="btnReset" class="secondary">Reset</button>
+    </div>
+
+    <!-- Field configuration export/import (now includes pasted CSV boxes too) -->
+    <div class="configRow">
+      <button id="btnExportConfig" class="secondary">Export config+data (JSON)</button>
+      <button id="btnImportConfig" class="secondary">Import config+data (JSON)</button>
+      <input id="configFile" type="file" accept=".json,application/json" style="display:none" />
+      <span class="tiny">Share settings + pasted outputs between systems.</span>
+    </div>
+
+    <div style="height:12px"></div>
+
+    <label for="out">PuTTY paste block</label>
+    <textarea id="out" class="out" spellcheck="false"></textarea>
+
+    <h2 style="margin-top:14px;">Field sets (editable + tick-box picker)</h2>
+
+    <label for="fieldsAgg">Aggregates</label>
+    <input id="fieldsAgg" type="text" value="" placeholder="(aggregate commands don't use -fields here; leave blank)" />
+    <div class="mini" style="margin-top:6px;">Aggregates commands are unchanged (no -fields). Everything else below supports -fields.</div>
+
+    <div style="height:10px"></div>
+
+    <label for="fieldsVol">volume show -fields</label>
+    <input id="fieldsVol" type="text" />
+    <div id="picker_fieldsVol"></div>
+
+    <div style="height:10px"></div>
+
+    <label for="fieldsVolSpace">volume show-space -fields</label>
+    <input id="fieldsVolSpace" type="text" />
+    <div id="picker_fieldsVolSpace"></div>
+
+    <div style="height:10px"></div>
+
+    <label for="fieldsSnaps">volume snapshot show -fields</label>
+    <input id="fieldsSnaps" type="text" />
+    <div id="picker_fieldsSnaps"></div>
+
+    <div style="height:10px"></div>
+
+    <label for="fieldsEff">volume efficiency show -fields</label>
+    <input id="fieldsEff" type="text" />
+    <div id="picker_fieldsEff"></div>
+
+    <div style="height:10px"></div>
+
+    <label for="fieldsQtree">volume qtree show -fields</label>
+    <input id="fieldsQtree" type="text" />
+    <div id="picker_fieldsQtree"></div>
+
+    <div style="height:10px"></div>
+
+    <label for="fieldsLun">lun show -fields</label>
+    <input id="fieldsLun" type="text" />
+    <div id="picker_fieldsLun"></div>
+
+    <div style="height:10px"></div>
+
+    <label for="fieldsCifs">vserver cifs share show -fields</label>
+    <input id="fieldsCifs" type="text" />
+    <div id="picker_fieldsCifs"></div>
+
+  </section>
+
+  <!-- RIGHT: paste/import/export + charts -->
+  <section class="card">
+    <h2>Import / paste outputs + export</h2>
+
+    <div class="warn" id="offlineWarn"></div>
+
+    <div class="section">
+      <h3>Quick import (CSV/TXT) into a section</h3>
+      <div class="meta">Pick a target box, choose a file, and it will load into that textarea (offline).</div>
+      <div class="row">
+        <div>
+          <label for="importTarget">Target</label>
+          <select id="importTarget">
+            <option value="pasteAgg">Aggregates</option>
+            <option value="pasteVol">Volumes</option>
+            <option value="pasteVolSpace">Vol_Show_Space</option>
+            <option value="pasteSnaps">Snapshots</option>
+            <option value="pasteEff">Efficiency</option>
+            <option value="pasteQtree">Qtrees</option>
+            <option value="pasteLun">LUNs</option>
+            <option value="pasteCifs">CIFS_Shares</option>
+          </select>
+        </div>
+        <div>
+          <label for="importFile">Choose file</label>
+          <input id="importFile" type="file" accept=".txt,.csv,.log" />
+        </div>
+      </div>
+      <div class="btns">
+        <button id="btnImport" class="secondary">Import into selected box</button>
+        <span class="tiny">The file should contain the header row + data rows (delimited output).</span>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button id="btnExportAll">Export ALL to one XLSX (multi-sheet)</button>
+      <button id="btnClearAll" class="secondary">Clear all pasted outputs</button>
+    </div>
+
+    <div class="hint">
+      Paste the ONTAP output for each command (including the header row). Lines starting with <code class="kbd">#</code> are ignored.
+      If you copy extra blank lines, that’s fine.
+    </div>
+
+    <!-- CHARTS -->
+    <div class="section" data-key="charts">
+      <h3>Summary charts (offline)</h3>
+      <div class="meta">Build a quick bar chart from one pasted section (Volumes is usually best).</div>
+
+      <div class="row">
+        <div>
+          <label for="chartSource">Data source</label>
+          <select id="chartSource">
+            <option value="pasteVol">Volumes</option>
+            <option value="pasteAgg">Aggregates</option>
+            <option value="pasteVolSpace">Vol_Show_Space</option>
+            <option value="pasteLun">LUNs</option>
+          </select>
+        </div>
+        <div>
+          <label for="chartTopN">Top N</label>
+          <input id="chartTopN" type="number" min="1" max="200" value="20" />
+        </div>
+      </div>
+
+      <div style="height:10px"></div>
+
+      <div class="row">
+        <div>
+          <label for="chartLabelCol">Label column</label>
+          <select id="chartLabelCol"></select>
+        </div>
+        <div>
+          <label for="chartValueCol">Value column</label>
+          <select id="chartValueCol"></select>
+        </div>
+      </div>
+
+      <div style="height:10px"></div>
+
+      <div class="row">
+        <div>
+          <label for="chartOrientation">Orientation</label>
+          <select id="chartOrientation">
+            <option value="horizontal">Horizontal bar</option>
+            <option value="vertical">Vertical bar</option>
+          </select>
+        </div>
+        <div>
+          <label for="chartSort">Sort</label>
+          <select id="chartSort">
+            <option value="desc">Largest → smallest</option>
+            <option value="asc">Smallest → largest</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="btns">
+        <button id="btnBuildChart">Build chart</button>
+        <button id="btnClearChart" class="secondary">Clear chart</button>
+        <span class="tiny">Tip: try <code class="kbd">percent-used</code>, <code class="kbd">used</code>, <code class="kbd">logical-used</code>, or <code class="kbd">size-used</code> (LUNs).</span>
+      </div>
+
+      <canvas id="chartCanvas"></canvas>
+      <div class="tiny" id="chartStatus" style="margin-top:8px;"></div>
+    </div>
+
+    <!-- PASTE SECTIONS -->
+    <div class="section" data-key="aggregates">
+      <h3>Aggregates</h3>
+      <div class="meta">Paste output of: <code class="kbd">storage aggregate show</code> / <code class="kbd">show-space</code> / <code class="kbd">show-efficiency</code> (you can paste one or all)</div>
+      <textarea class="paste" id="pasteAgg" spellcheck="false" placeholder="Paste aggregate output here…"></textarea>
+      <div class="btns">
+        <button class="btnExportOne" data-target="pasteAgg" data-sheet="Aggregates">Export Aggregates.xlsx</button>
+      </div>
+    </div>
+
+    <div class="section" data-key="volumes">
+      <h3>Volumes</h3>
+      <div class="meta">Paste output of: <code class="kbd">volume show -fields …</code></div>
+      <textarea class="paste" id="pasteVol" spellcheck="false" placeholder="Paste volume show output here…"></textarea>
+      <div class="btns">
+        <button class="btnExportOne" data-target="pasteVol" data-sheet="Volumes">Export Volumes.xlsx</button>
+      </div>
+    </div>
+
+    <div class="section" data-key="volspace">
+      <h3>Volume show-space</h3>
+      <div class="meta">Paste output of: <code class="kbd">volume show-space -fields …</code></div>
+      <textarea class="paste" id="pasteVolSpace" spellcheck="false" placeholder="Paste volume show-space output here…"></textarea>
+      <div class="btns">
+        <button class="btnExportOne" data-target="pasteVolSpace" data-sheet="Vol_Show_Space">Export Vol_Show_Space.xlsx</button>
+      </div>
+    </div>
+
+    <div class="section" data-key="snapshots">
+      <h3>Snapshots</h3>
+      <div class="meta">Paste output of: <code class="kbd">volume snapshot show -fields …</code></div>
+      <textarea class="paste" id="pasteSnaps" spellcheck="false" placeholder="Paste snapshot output here…"></textarea>
+      <div class="btns">
+        <button class="btnExportOne" data-target="pasteSnaps" data-sheet="Snapshots">Export Snapshots.xlsx</button>
+      </div>
+    </div>
+
+    <div class="section" data-key="efficiency">
+      <h3>Volume efficiency</h3>
+      <div class="meta">Paste output of: <code class="kbd">volume efficiency show -fields …</code></div>
+      <textarea class="paste" id="pasteEff" spellcheck="false" placeholder="Paste efficiency output here…"></textarea>
+      <div class="btns">
+        <button class="btnExportOne" data-target="pasteEff" data-sheet="Efficiency">Export Efficiency.xlsx</button>
+      </div>
+    </div>
+
+    <div class="section" data-key="qtrees">
+      <h3>Qtrees</h3>
+      <div class="meta">Paste output of: <code class="kbd">volume qtree show -fields …</code></div>
+      <textarea class="paste" id="pasteQtree" spellcheck="false" placeholder="Paste qtree output here…"></textarea>
+      <div class="btns">
+        <button class="btnExportOne" data-target="pasteQtree" data-sheet="Qtrees">Export Qtrees.xlsx</button>
+      </div>
+    </div>
+
+    <div class="section" data-key="luns">
+      <h3>LUNs</h3>
+      <div class="meta">Paste output of: <code class="kbd">lun show -fields …</code></div>
+      <textarea class="paste" id="pasteLun" spellcheck="false" placeholder="Paste LUN output here…"></textarea>
+      <div class="btns">
+        <button class="btnExportOne" data-target="pasteLun" data-sheet="LUNs">Export LUNs.xlsx</button>
+      </div>
+    </div>
+
+    <div class="section" data-key="cifs">
+      <h3>SMB shares</h3>
+      <div class="meta">Paste output of: <code class="kbd">vserver cifs share show -fields …</code></div>
+      <textarea class="paste" id="pasteCifs" spellcheck="false" placeholder="Paste CIFS share output here…"></textarea>
+      <div class="btns">
+        <button class="btnExportOne" data-target="pasteCifs" data-sheet="CIFS_Shares">Export CIFS_Shares.xlsx</button>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- OFFLINE libs (place these files next to this HTML):
+     - xlsx.full.min.js  (SheetJS)
+     - chart.umd.min.js  (Chart.js)
+-->
+<script src="./xlsx.full.min.js"></script>
+<script src="./chart.umd.min.js"></script>
+
+<script>
+  const el = (id) => document.getElementById(id);
+
+  function normDelimiter(v) {
+    return v === "\\t" ? "\t" : v;
+  }
+
+  function sectionHeader(prefix, title) {
+    return `${prefix} ===== ${title} =====`;
+  }
+
+  function maybeVserverArg(cmd, svm, scope, isVserverAware) {
+    if (!svm) return cmd;
+    if (scope === "everywhere") return `${cmd} -vserver ${svm}`;
+    return isVserverAware ? `${cmd} -vserver ${svm}` : cmd;
+  }
+
+  /* =========================
+     Units handling (best-effort)
+     ========================= */
+
+  function getUnitsLine() {
+    const spec = (el("unitsSpecifier").value || "(none)").trim().toLowerCase();
+    const rawChecked = el("unitsRaw").checked;
+
+    if (rawChecked) return "set -units raw";
+    if (spec === "(none)") return "";
+    return `set -units ${spec}`;
+  }
+
+  /* =========================
+     Simple local "database"
+     - Uses IndexedDB when available
+     - Falls back to localStorage
+     ========================= */
+
+  const DB = (() => {
+    const DB_NAME = "ontap_cli_exporter_db";
+    const STORE = "selections";
+    const USE_IDB = (() => {
+      try { return !!window.indexedDB; } catch { return false; }
+    })();
+
+    function lsKey(k) { return `ontap_sel_${k}`; }
+
+    async function idbOpen() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE);
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function idbGet(key) {
+      const db = await idbOpen();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, "readonly");
+        const store = tx.objectStore(STORE);
+        const req = store.get(key);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function idbSet(key, value) {
+      const db = await idbOpen();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE, "readwrite");
+        const store = tx.objectStore(STORE);
+        const req = store.put(value, key);
+        req.onsuccess = () => resolve(true);
+        req.onerror = () => reject(req.error);
+      });
+    }
+
+    async function get(key) {
+      if (USE_IDB) {
+        try { return await idbGet(key); } catch {}
+      }
+      try {
+        const raw = localStorage.getItem(lsKey(key));
+        return raw ? JSON.parse(raw) : undefined;
+      } catch {
+        return undefined;
+      }
+    }
+
+    async function set(key, value) {
+      if (USE_IDB) {
+        try { await idbSet(key, value); return; } catch {}
+      }
+      try {
+        localStorage.setItem(lsKey(key), JSON.stringify(value));
+      } catch {}
+    }
+
+    async function del(key) {
+      if (USE_IDB) {
+        try {
+          const db = await idbOpen();
+          await new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE, "readwrite");
+            const store = tx.objectStore(STORE);
+            const req = store.delete(key);
+            req.onsuccess = () => resolve(true);
+            req.onerror = () => reject(req.error);
+          });
+          return;
+        } catch {}
+      }
+      try { localStorage.removeItem(lsKey(key)); } catch {}
+    }
+
+    return { get, set, del };
+  })();
+
+  function ensureOfflineLibs() {
+    const missing = [];
+    if (typeof XLSX === "undefined") missing.push("xlsx.full.min.js (SheetJS)");
+    if (typeof Chart === "undefined") missing.push("chart.umd.min.js (Chart.js)");
+
+    const warn = el("offlineWarn");
+    if (missing.length) {
+      warn.style.display = "block";
+      warn.textContent =
+        "Offline libraries missing: " + missing.join(", ") +
+        ". Put them in the same folder as this HTML file (no CDN), then refresh.";
+      return false;
+    }
+    warn.style.display = "none";
+    warn.textContent = "";
+    return true;
+  }
+
+  /* =========================
+     Field catalogs (from filer)
+     ========================= */
+
+  const FIELD_CATALOG = {
+    fieldsQtree: [
+      { f:"vserver", d:"Vserver Name" },
+      { f:"volume", d:"Volume Name" },
+      { f:"qtree", d:"Qtree Name" },
+      { f:"qtree-path", d:"Actual (Non-Junction) Qtree Path" },
+      { f:"security-style", d:"Security Style" },
+      { f:"oplock-mode", d:"Oplock Mode" },
+      { f:"user", d:"User ID" },
+      { f:"group", d:"Group ID" },
+      { f:"unix-permissions", d:"Unix Permissions" },
+      { f:"qtree-id", d:"Qtree Id" },
+      { f:"status", d:"Qtree Status" },
+      { f:"export-policy", d:"Export Policy" },
+      { f:"is-export-policy-inherited", d:"Is Export Policy Inherited" },
+      { f:"qos-policy-group", d:"QoS policy group" }
+    ],
+    fieldsLun: [
+      { f:"vserver", d:"Vserver Name" },
+      { f:"path", d:"LUN Path" },
+      { f:"volume", d:"Volume Name" },
+      { f:"qtree", d:"Qtree Name" },
+      { f:"lun", d:"LUN Name" },
+      { f:"size", d:"LUN Size" },
+      { f:"ostype", d:"OS Type" },
+      { f:"space-reserve", d:"Space Reservation" },
+      { f:"serial", d:"Serial Number" },
+      { f:"serial-hex", d:"Serial Number (Hex)" },
+      { f:"comment", d:"Comment" },
+      { f:"space-reserve-honored", d:"Space Reservations Honored" },
+      { f:"space-allocation", d:"Space Allocation" },
+      { f:"state", d:"State" },
+      { f:"uuid", d:"LUN UUID" },
+      { f:"mapped", d:"Mapped" },
+      { f:"block-size", d:"Physical Size of Logical Block" },
+      { f:"device-legacy-id", d:"Device Legacy ID" },
+      { f:"device-binary-id", d:"Device Binary ID" },
+      { f:"device-text-id", d:"Device Text ID" },
+      { f:"read-only", d:"Read Only" },
+      { f:"restore-inaccessible", d:"Fenced Due to Restore" },
+      { f:"size-used", d:"Used Size" },
+      { f:"max-resize-size", d:"Maximum Resize Size" },
+      { f:"creation-timestamp", d:"Creation Time" },
+      { f:"class", d:"Class" },
+      { f:"node", d:"Node Hosting the LUN" },
+      { f:"qos-policy-group", d:"QoS Policy Group" },
+      { f:"qos-adaptive-policy-group", d:"QoS Adaptive Policy Group" },
+      { f:"caching-policy", d:"Caching Policy Name" },
+      { f:"is-clone", d:"Clone" },
+      { f:"is-clone-autodelete-enabled", d:"Clone Autodelete Enabled" },
+      { f:"inconsistent-import", d:"Inconsistent Import" },
+      { f:"application", d:"Application" },
+      { f:"zrto-vol-consensus", d:"ZRTO Volume consensus" }
+    ],
+    fieldsCifs: [
+      { f:"vserver", d:"Vserver" },
+      { f:"share-name", d:"Share" },
+      { f:"cifs-server", d:"CIFS Server NetBIOS Name" },
+      { f:"path", d:"Path" },
+      { f:"share-properties", d:"Share Properties" },
+      { f:"symlink-properties", d:"Symlink Properties" },
+      { f:"file-umask", d:"File Mode Creation Mask" },
+      { f:"dir-umask", d:"Directory Mode Creation Mask" },
+      { f:"comment", d:"Share Comment" },
+      { f:"acl", d:"Share ACL" },
+      { f:"attribute-cache-ttl", d:"File Attribute Cache Lifetime" },
+      { f:"volume", d:"Volume Name" },
+      { f:"offline-files", d:"Offline Files" },
+      { f:"vscan-fileop-profile", d:"Vscan File-Operations Profile" },
+      { f:"max-connections-per-share", d:"Maximum Tree Connections on Share" },
+      { f:"force-group-for-create", d:"UNIX Group for File Create" }
+    ],
+    fieldsEff: [
+      { f:"vserver", d:"Vserver Name" },
+      { f:"volume", d:"Volume Name" },
+      { f:"path", d:"Volume Path" },
+      { f:"state", d:"State" },
+      { f:"op-status", d:"Status" },
+      { f:"progress", d:"Progress" },
+      { f:"type", d:"Type" },
+      { f:"schedule", d:"Schedule" },
+      { f:"policy", d:"Efficiency Policy Name" },
+      { f:"blks-skipped-sharing", d:"Blocks Skipped Sharing" },
+      { f:"last-op-state", d:"Last Operation State" },
+      { f:"last-success-op-begin", d:"Last Success Operation Begin" },
+      { f:"last-success-op-end", d:"Last Success Operation End" },
+      { f:"last-op-begin", d:"Last Operation Begin" },
+      { f:"last-op-end", d:"Last Operation End" },
+      { f:"last-op-size", d:"Last Operation Size" },
+      { f:"last-op-error", d:"Last Operation Error" },
+      { f:"changelog-usage", d:"Changelog Usage" },
+      { f:"logical-data-size", d:"Logical Data Size" },
+      { f:"logical-data-limit", d:"Logical Data Limit" },
+      { f:"logical-data-percent", d:"Logical Data Percent" },
+      { f:"queued-job", d:"Queued Job" },
+      { f:"stale-fingerprint-percentage", d:"Stale Fingerprint Percentage" },
+      { f:"compression", d:"Compression" },
+      { f:"inline-compression", d:"Inline Compression" },
+      { f:"storage-efficiency-mode", d:"Storage Efficiency Mode" },
+      { f:"is-constituent", d:"Constituent Volume" },
+      { f:"inline-dedupe", d:"Inline Dedupe" },
+      { f:"data-compaction", d:"Data Compaction" },
+      { f:"cross-volume-inline-dedupe", d:"Cross Volume Inline Deduplication" },
+      { f:"cross-volume-background-dedupe", d:"Cross Volume Background Deduplication" },
+      { f:"extended-compressed-data", d:"Extended Compressed Data" }
+    ],
+    fieldsSnaps: [
+      { f:"vserver", d:"Vserver" },
+      { f:"volume", d:"Volume" },
+      { f:"snapshot", d:"Snapshot" },
+      { f:"create-time", d:"Creation Time" },
+      { f:"busy", d:"Snapshot Busy" },
+      { f:"owners", d:"List of Owners" },
+      { f:"size", d:"Snapshot Size" },
+      { f:"blocks", d:"Percentage of Total Blocks" },
+      { f:"usedblocks", d:"Percentage of Used Blocks" },
+      { f:"comment", d:"Comment" },
+      { f:"is-7-mode", d:"7-Mode Snapshot" },
+      { f:"snapmirror-label", d:"Label for SnapMirror Operations" },
+      { f:"state", d:"Snapshot State" },
+      { f:"is-constituent", d:"Constituent Snapshot" },
+      { f:"expiry-time", d:"Expiry Time" },
+      { f:"snaplock-expiry-time", d:"SnapLock Expiry Time" }
+    ],
+    fieldsVolSpace: [
+      { f:"vserver", d:"Vserver" },
+      { f:"volume", d:"Volume Name" },
+      { f:"volume-msid", d:"Volume MSID" },
+      { f:"volume-dsid", d:"Volume DSID" },
+      { f:"vserver-uuid", d:"Vserver UUID" },
+      { f:"aggregate", d:"Aggregate Name" },
+      { f:"aggregate-uuid", d:"Aggregate UUID" },
+      { f:"hostname", d:"Hostname" },
+      { f:"user-data", d:"User Data" },
+      { f:"user-data-percent", d:"User Data Percent" },
+      { f:"dedupe-metafiles", d:"Deduplication" },
+      { f:"dedupe-metafiles-percent", d:"Deduplication Percent" },
+      { f:"dedupe-metafiles-temporary", d:"Temporary Deduplication" },
+      { f:"dedupe-metafiles-temporary-percent", d:"Temporary Deduplication Percent" },
+      { f:"filesystem-metadata", d:"Filesystem Metadata" },
+      { f:"filesystem-metadata-percent", d:"Filesystem Metadata Percent" },
+      { f:"snapmirror-metadata", d:"SnapMirror Metadata" },
+      { f:"snapmirror-metadata-percent", d:"SnapMirror Metadata Percent" },
+      { f:"tape-backup-metadata", d:"Tape Backup Metadata" },
+      { f:"tape-backup-metadata-percent", d:"Tape Backup Metadata Percent" },
+      { f:"quota-metafiles", d:"Quota Metadata" },
+      { f:"quota-metafiles-percent", d:"Quota Metadata Percent" },
+      { f:"inodes", d:"Inodes" },
+      { f:"inodes-percent", d:"Inodes Percent" },
+      { f:"inodes-upgrade", d:"Inodes Upgrade" },
+      { f:"inodes-upgrade-percent", d:"Inodes Upgrade Percent" },
+      { f:"snapshot-reserve", d:"Snapshot Reserve" },
+      { f:"snapshot-reserve-percent", d:"Snapshot Reserve Percent" },
+      { f:"snapshot-reserve-unusable", d:"Snapshot Reserve Unusable" },
+      { f:"snapshot-reserve-unusable-percent", d:"Snapshot Reserve Unusable Percent" },
+      { f:"snapshot-spill", d:"Snapshot Spill" },
+      { f:"snapshot-spill-percent", d:"Snapshot Spill Percent" },
+      { f:"performance-metadata", d:"Performance Metadata" },
+      { f:"performance-metadata-percent", d:"Performance Metadata Percent" },
+      { f:"total-used", d:"Total Used" },
+      { f:"total-used-percent", d:"Total Used Percent" },
+      { f:"physical-used", d:"Total Physical Used Size" },
+      { f:"physical-used-percent", d:"Physical Used Percentage" },
+      { f:"logical-used", d:"Logical Used Size" },
+      { f:"logical-used-percent", d:"Logical Used Percent" },
+      { f:"logical-available", d:"Logical Available" }
+    ],
+    fieldsVol: [
+      { f:"vserver", d:"Vserver Name" },
+      { f:"volume", d:"Volume Name" },
+      { f:"aggregate", d:"Aggregate Name" },
+      { f:"aggr-list", d:"List of Aggregates for FlexGroup Constituents" },
+      { f:"encryption-type", d:"Encryption Type" },
+      { f:"nodes", d:"List of Nodes Hosting the Volume" },
+      { f:"size", d:"Volume Size" },
+      { f:"dsid", d:"Volume Data Set ID" },
+      { f:"msid", d:"Volume Master Data Set ID" },
+      { f:"state", d:"Volume State" },
+      { f:"volume-style", d:"Volume Style" },
+      { f:"volume-style-extended", d:"Extended Volume Style" },
+      { f:"flexcache-endpoint-type", d:"FlexCache Endpoint Type" },
+      { f:"is-cluster-volume", d:"Is Cluster-Mode Volume" },
+      { f:"is-constituent", d:"Is Constituent Volume" },
+      { f:"constituent-count", d:"Number of Constituent Volumes" },
+      { f:"policy", d:"Export Policy" },
+      { f:"user", d:"User ID" },
+      { f:"group", d:"Group ID" },
+      { f:"security-style", d:"Security Style" },
+      { f:"unix-permissions", d:"UNIX Permissions" },
+      { f:"junction-path", d:"Junction Path" },
+      { f:"junction-path-source", d:"Junction Path Source" },
+      { f:"junction-active", d:"Junction Active" },
+      { f:"junction-parent", d:"Junction Parent Volume" },
+      { f:"comment", d:"Comment" },
+      { f:"available", d:"Available Size" },
+      { f:"filesystem-size", d:"Filesystem Size" },
+      { f:"total", d:"Total User-Visible Size" },
+      { f:"used", d:"Used Size" },
+      { f:"percent-used", d:"Used Percentage" },
+      { f:"space-nearly-full-threshold-percent", d:"Volume Nearly Full Threshold Percent" },
+      { f:"space-full-threshold-percent", d:"Volume Full Threshold Percent" },
+      { f:"max-autosize", d:"Maximum Autosize" },
+      { f:"min-autosize", d:"Minimum Autosize" },
+      { f:"autosize-grow-threshold-percent", d:"Autosize Grow Threshold Percentage" },
+      { f:"autosize-shrink-threshold-percent", d:"Autosize Shrink Threshold Percentage" },
+      { f:"autosize-mode", d:"Autosize Mode" },
+      { f:"files", d:"Total Files (for user-visible data)" },
+      { f:"files-used", d:"Files Used (for user-visible data)" },
+      { f:"space-guarantee-enabled", d:"Space Guarantee in Effect" },
+      { f:"is-space-slo-enabled", d:"Space SLO in Effect" },
+      { f:"space-slo", d:"Space SLO" },
+      { f:"space-guarantee", d:"Space Guarantee Style" },
+      { f:"fractional-reserve", d:"Fractional Reserve" },
+      { f:"type", d:"Volume Type" },
+      { f:"snapdir-access", d:"Snapshot Directory Access Enabled" },
+      { f:"percent-snapshot-space", d:"Space Reserved for Snapshot Copies" },
+      { f:"snapshot-space-used", d:"Snapshot Reserve Used" },
+      { f:"snapshot-policy", d:"Snapshot Policy" },
+      { f:"create-time", d:"Creation Time" },
+      { f:"language", d:"Language" },
+      { f:"clone-volume", d:"Clone Volume" },
+      { f:"node", d:"Node name" },
+      { f:"clone-parent-vserver", d:"Clone Parent Vserver Name" },
+      { f:"clone-parent-name", d:"FlexClone Parent Volume" },
+      { f:"nvfail", d:"NVFAIL Option" },
+      { f:"in-nvfailed-state", d:"Volume's NVFAIL State" },
+      { f:"dr-force-nvfail", d:"Force NVFAIL on MetroCluster Switchover" },
+      { f:"filesys-size-fixed", d:"Is File System Size Fixed" },
+      { f:"extent-enabled", d:"(DEPRECATED)-Extent Option" },
+      { f:"overwrite-reserve", d:"Reserved Space for Overwrites" },
+      { f:"space-mgmt-try-first", d:"Primary Space Management Strategy" },
+      { f:"read-realloc", d:"Read Reallocation Option" },
+      { f:"sched-snap-name", d:"Naming Scheme for Automatic Snapshot Copies" },
+      { f:"is-inconsistent", d:"Inconsistency in the File System" },
+      { f:"is-quiesced-on-disk", d:"Is Volume Quiesced (On-Disk)" },
+      { f:"is-quiesced-in-memory", d:"Is Volume Quiesced (In-Memory)" },
+      { f:"is-sis-volume", d:"Volume Contains Shared or Compressed Data" },
+      { f:"sis-space-saved", d:"Space Saved by Storage Efficiency" },
+      { f:"sis-space-saved-percent", d:"Percentage Saved by Storage Efficiency" },
+      { f:"dedupe-space-saved", d:"Space Saved by Deduplication" },
+      { f:"dedupe-space-saved-percent", d:"Percentage Saved by Deduplication" },
+      { f:"dedupe-space-shared", d:"Space Shared by Deduplication" },
+      { f:"compression-space-saved", d:"Space Saved by Compression" },
+      { f:"compression-space-saved-percent", d:"Percentage Space Saved by Compression" },
+      { f:"size-used-by-snapshots", d:"Volume Size Used by Snapshot Copies" },
+      { f:"block-type", d:"Block Type" },
+      { f:"is-moving", d:"Is Volume Moving" },
+      { f:"hybrid-cache-eligibility", d:"Flash Pool Caching Eligibility" },
+      { f:"hybrid-cache-write-caching-ineligibility-reason", d:"Flash Pool Write Caching Ineligibility Reason" },
+      { f:"constituent-role", d:"Constituent Volume Role" },
+      { f:"qos-policy-group", d:"QoS Policy Group Name" },
+      { f:"qos-adaptive-policy-group", d:"QoS Adaptive Policy Group Name" },
+      { f:"caching-policy", d:"Caching Policy Name" },
+      { f:"is-volume-in-cutover", d:"Is Volume Move in Cutover Phase" },
+      { f:"snapshot-count", d:"Number of Snapshot Copies in the Volume" },
+      { f:"vbn-bad-present", d:"VBN_BAD may be present in the active filesystem" },
+      { f:"is-vol-on-hybrid-aggr", d:"Is Volume on a hybrid aggregate" },
+      { f:"physical-used", d:"Total Physical Used Size" },
+      { f:"physical-used-percent", d:"Physical Used Percentage" },
+      { f:"flexgroup-name", d:"FlexGroup Name" },
+      { f:"is-flexgroup", d:"Is Volume a FlexGroup" },
+      { f:"snaplock-type", d:"SnapLock Type" },
+      { f:"vserver-dr-protection", d:"Vserver DR Protection" },
+      { f:"encrypt", d:"Enable or Disable Encryption" },
+      { f:"is-encrypted", d:"Is Volume Encrypted" },
+      { f:"encryption-state", d:"Encryption State" },
+      { f:"key-id", d:"Encryption Key ID" },
+      { f:"key-creation-time", d:"Encryption Key Creation Time" },
+      { f:"application", d:"Application" },
+      { f:"is-protocol-access-fenced", d:"Is Fenced for Protocol Access" },
+      { f:"protocol-access-fenced-by", d:"Protocol Access Fence Owner" },
+      { f:"single-instance-data-logging", d:"Is SIDL enabled" },
+      { f:"over-provisioned", d:"Over Provisioned Size" },
+      { f:"snapshot-reserve-available", d:"Available Snapshot Reserve Size" },
+      { f:"logical-used", d:"Logical Used Size" },
+      { f:"logical-used-percent", d:"Logical Used Percentage" },
+      { f:"logical-available", d:"Logical Available Size" },
+      { f:"logical-used-by-afs", d:"Logical Size Used by Active Filesystem" },
+      { f:"logical-used-by-snapshots", d:"Logical Size Used by All Snapshots" },
+      { f:"is-space-reporting-logical", d:"Logical Space Reporting" },
+      { f:"is-space-enforcement-logical", d:"Logical Space Enforcement" },
+      { f:"tiering-policy", d:"Volume Tiering Policy" },
+      { f:"performance-tier-inactive-user-data", d:"Performance Tier Inactive User Data" },
+      { f:"performance-tier-inactive-user-data-percent", d:"Performance Tier Inactive User Data Percent" },
+      { f:"tiering-object-tags", d:"Tags to be Associated with Objects Stored on a FabricPool" },
+      { f:"needs-object-retagging", d:"Does the Object Tagging Scanner Need to Run on This Volume" },
+      { f:"is-analytics-supported", d:"Is File System Analytics Supported" },
+      { f:"analytics-unsupported-reason", d:"Reason File System Analytics is not Supported" },
+      { f:"analytics-state", d:"File System Analytics State" },
+      { f:"analytics-scan-progress", d:"File System Analytics Scan Progress" },
+      { f:"activity-tracking-state", d:"Activity Tracking State" },
+      { f:"is-activity-tracking-supported", d:"Is Activity Tracking Supported" },
+      { f:"activity-tracking-unsupported-reason", d:"Reason Activity Tracking Is Not Supported" },
+      { f:"is-smbc-master", d:"Is SMBC Master" },
+      { f:"is-smbc-failover-capable", d:"Is SMBC Failover Capable" },
+      { f:"smbc-consensus", d:"SMBC Consensus" },
+      { f:"anti-ransomware-state", d:"Anti-ransomware State" }
+    ]
+  };
+
+  /* =========================
+     Field picker rendering
+     ========================= */
+
+  function parseFieldList(str) {
+    return (str || "")
+      .split(",")
+      .map(s => s.trim())
+      .filter(Boolean);
+  }
+
+  function uniq(arr) {
+    const seen = new Set();
+    const out = [];
+    for (const x of arr) {
+      if (!seen.has(x)) { seen.add(x); out.push(x); }
+    }
+    return out;
+  }
+
+  function setInputFields(inputId, fields) {
+    const cleaned = uniq(fields).join(",");
+    el(inputId).value = cleaned;
+  }
+
+  function getSelectedFromInput(inputId, catalog) {
+    const raw = parseFieldList(el(inputId).value);
+    if (!raw.length) return [];
+    const valid = new Set((catalog || []).map(x => x.f));
+    return raw.filter(f => valid.has(f));
+  }
+
+  function debounce(fn, ms) {
+    let t = null;
+    return (...args) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn(...args), ms);
+    };
+  }
+
+  const regenDebounced = debounce(() => genPuttyBlock(), 80);
+
+  function renderPicker(inputId, title) {
+    const host = el(`picker_${inputId}`);
+    const catalog = FIELD_CATALOG[inputId] || [];
+    const pillId = `${inputId}_count`;
+
+    host.innerHTML = `
+      <details class="picker">
+        <summary>
+          <span>${title} field picker</span>
+          <span class="pill" id="${pillId}">0 selected</span>
+        </summary>
+        <div class="pickerBody">
+          <div class="pickerTools">
+            <input type="text" id="${inputId}_search" placeholder="Search fields…" />
+            <button class="secondary" id="${inputId}_all">All</button>
+            <button class="secondary" id="${inputId}_none">None</button>
+          </div>
+          <div class="pickerList" id="${inputId}_list"></div>
+          <div class="tiny" style="margin-top:8px;">
+            Tip: You can also edit the comma-separated list above; the tick boxes will sync on blur.
+          </div>
+        </div>
+      </details>
+    `;
+
+    const listEl = el(`${inputId}_list`);
+    const searchEl = el(`${inputId}_search`);
+
+    function makeRow(item) {
+      const row = document.createElement("div");
+      row.className = "pickItem";
+      row.dataset.field = item.f;
+      row.dataset.desc = (item.d || "").toLowerCase();
+      row.dataset.f = item.f.toLowerCase();
+      row.innerHTML = `
+        <input type="checkbox" />
+        <div>
+          <div class="pickField">${item.f}</div>
+          <div class="pickDesc">${item.d || ""}</div>
+        </div>
+      `;
+      return row;
+    }
+
+    for (const item of catalog) listEl.appendChild(makeRow(item));
+
+    function updatePill() {
+      const checked = listEl.querySelectorAll('input[type="checkbox"]:checked').length;
+      el(pillId).textContent = `${checked} selected`;
+    }
+
+    function getCheckedFields() {
+      const rows = Array.from(listEl.querySelectorAll(".pickItem"));
+      return rows
+        .filter(r => r.querySelector('input[type="checkbox"]').checked)
+        .map(r => r.dataset.field);
+    }
+
+    function applyToInputAndSave() {
+      const selected = getCheckedFields();
+      setInputFields(inputId, selected);
+      DB.set(inputId, selected);
+      regenDebounced();
+      updatePill();
+    }
+
+    function setAll(checked) {
+      listEl.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = checked);
+      applyToInputAndSave();
+    }
+
+    function syncCheckboxesFromInput() {
+      const selected = new Set(getSelectedFromInput(inputId, catalog));
+      listEl.querySelectorAll(".pickItem").forEach(row => {
+        row.querySelector('input[type="checkbox"]').checked = selected.has(row.dataset.field);
+      });
+      DB.set(inputId, Array.from(selected));
+      regenDebounced();
+      updatePill();
+    }
+
+    listEl.addEventListener("change", (e) => {
+      if (e.target && e.target.matches('input[type="checkbox"]')) applyToInputAndSave();
+    });
+
+    searchEl.addEventListener("input", () => {
+      const q = (searchEl.value || "").trim().toLowerCase();
+      listEl.querySelectorAll(".pickItem").forEach(row => {
+        const hit = !q || row.dataset.f.includes(q) || row.dataset.desc.includes(q);
+        row.style.display = hit ? "" : "none";
+      });
+    });
+
+    el(`${inputId}_all`).addEventListener("click", () => setAll(true));
+    el(`${inputId}_none`).addEventListener("click", () => setAll(false));
+
+    el(inputId).addEventListener("blur", syncCheckboxesFromInput);
+
+    return {
+      setCheckedFromList: (fields) => {
+        const selected = new Set(fields || []);
+        listEl.querySelectorAll(".pickItem").forEach(row => {
+          row.querySelector('input[type="checkbox"]').checked = selected.has(row.dataset.field);
+        });
+        setInputFields(inputId, Array.from(selected));
+        updatePill();
+      }
+    };
+  }
+
+  /* =========================
+     PuTTY block generation
+     ========================= */
+
+  function genPuttyBlock() {
+    const delim = normDelimiter(el("delimiter").value);
+    const prefix = el("commentPrefix").value;
+    const svm = el("svm").value.trim();
+    const scope = el("scope").value;
+
+    const lines = [];
+    lines.push(sectionHeader(prefix, "SESSION DISPLAY SETTINGS"));
+    if (el("showAllFields").checked) lines.push(`set -showallfields true`);
+    lines.push(`set -showseparator "${delim === "\t" ? "\\t" : delim}"`);
+
+    const unitsLine = getUnitsLine();
+    if (unitsLine) lines.push(unitsLine);
+
+    if (el("rows0").checked) lines.push(`rows 0`);
+    lines.push("");
+
+    lines.push(sectionHeader(prefix, "AGGREGATES / LOCAL TIERS"));
+    lines.push(`storage aggregate show`);
+    lines.push(`storage aggregate show-space`);
+    lines.push(`storage aggregate show-efficiency`);
+    lines.push("");
+
+    lines.push(sectionHeader(prefix, "VOLUMES (INVENTORY)"));
+    {
+      const fields = el("fieldsVol").value.trim();
+      let cmd = fields ? `volume show -fields ${fields}` : `volume show`;
+      cmd = maybeVserverArg(cmd, svm, scope, true);
+      lines.push(cmd);
+    }
+    lines.push("");
+
+    lines.push(sectionHeader(prefix, "VOLUME SPACE (SHOW-SPACE)"));
+    {
+      const fields = el("fieldsVolSpace").value.trim();
+      let cmd = fields ? `volume show-space -fields ${fields}` : `volume show-space`;
+      cmd = maybeVserverArg(cmd, svm, scope, true);
+      lines.push(cmd);
+    }
+    lines.push("");
+
+    lines.push(sectionHeader(prefix, "SNAPSHOTS"));
+    {
+      const fields = el("fieldsSnaps").value.trim();
+      let cmd = fields ? `volume snapshot show -fields ${fields}` : `volume snapshot show`;
+      cmd = maybeVserverArg(cmd, svm, scope, true);
+      lines.push(cmd);
+    }
+    lines.push("");
+
+    lines.push(sectionHeader(prefix, "VOLUME EFFICIENCY"));
+    {
+      const fields = el("fieldsEff").value.trim();
+      let cmd = fields ? `volume efficiency show -fields ${fields}` : `volume efficiency show`;
+      cmd = maybeVserverArg(cmd, svm, scope, true);
+      lines.push(cmd);
+    }
+    lines.push("");
+
+    lines.push(sectionHeader(prefix, "QTREES"));
+    {
+      const fields = el("fieldsQtree").value.trim();
+      let cmd = fields ? `volume qtree show -fields ${fields}` : `volume qtree show`;
+      cmd = maybeVserverArg(cmd, svm, scope, true);
+      lines.push(cmd);
+    }
+    lines.push("");
+
+    lines.push(sectionHeader(prefix, "LUNS"));
+    {
+      const fields = el("fieldsLun").value.trim();
+      let cmd = fields ? `lun show -fields ${fields}` : `lun show`;
+      cmd = maybeVserverArg(cmd, svm, scope, true);
+      lines.push(cmd);
+    }
+    lines.push("");
+
+    lines.push(sectionHeader(prefix, "CIFS SHARES"));
+    {
+      const fields = el("fieldsCifs").value.trim();
+      let cmd = fields ? `vserver cifs share show -fields ${fields}` : `vserver cifs share show`;
+      cmd = maybeVserverArg(cmd, svm, scope, true);
+      lines.push(cmd);
+    }
+    lines.push("");
+
+    lines.push(sectionHeader(prefix, "FIELD DISCOVERY (REFERENCE)"));
+    lines.push(`${prefix} volume show -fields ?`);
+    lines.push(`${prefix} volume show-space -fields ?`);
+    lines.push(`${prefix} volume snapshot show -fields ?`);
+    lines.push(`${prefix} volume efficiency show -fields ?`);
+    lines.push(`${prefix} volume qtree show -fields ?`);
+    lines.push(`${prefix} lun show -fields ?`);
+    lines.push(`${prefix} vserver cifs share show -fields ?`);
+
+    el("out").value = lines.join("\n");
+  }
+
+  // --- Parsing delimited text into AOAs (array-of-arrays) ---
+  function parseDelimited(text, delimiter) {
+    const lines = (text || "")
+      .split(/\r?\n/)
+      .map(l => l.trimEnd())
+      .filter(l => l.trim().length > 0)
+      .filter(l => !l.trimStart().startsWith("#"));
+
+    const rows = [];
+    for (const line of lines) {
+      const cols = line.split(delimiter).map(c => c.trim());
+      rows.push(cols);
+    }
+    return rows;
+  }
+
+  function toSafeSheetName(name) {
+    const cleaned = name.replace(/[:\\\/\?\*\[\]]/g, "_").slice(0, 31);
+    return cleaned.length ? cleaned : "Sheet1";
+  }
+
+  /* =========================
+     XLSX export processing:
+     - Strip MB/GB/TB suffix from size fields (keep numeric)
+     - Put unit in the header
+     - Add totals row for size columns
+     ========================= */
+
+  function looksLikeSizeHeader(h) {
+    const s = String(h || "").toLowerCase();
+    // Heuristic: wide net for ONTAP "size-like" fields
+    return /(^|[-_])(size|used|available|total|reserve|spill|data|metafiles|physical|logical|max|min|filesystem|overwrite|over-provisioned|snapshot)([-_]|$)/.test(s)
+      || /(physical|logical|snapshot)/.test(s)
+      || s === "size"
+      || s.endsWith("used")
+      || s.endsWith("available")
+      || s.endsWith("total");
+  }
+
+  function parseSizeValue(v) {
+    // returns { num: number|null, unit: "KB"|"MB"|"GB"|"TB"|"PB"|null }
+    if (v == null) return { num: null, unit: null };
+    let s = String(v).trim();
+    if (!s) return { num: null, unit: null };
+
+    // ignore percents
+    if (s.endsWith("%")) return { num: null, unit: null };
+
+    // remove commas
+    s = s.replace(/,/g, "");
+
+    // strict size suffixes
+    const m = s.match(/^(-?\d+(?:\.\d+)?)(?:\s*(KB|MB|GB|TB|PB))?$/i);
+    if (!m) return { num: null, unit: null };
+    const num = parseFloat(m[1]);
+    if (!Number.isFinite(num)) return { num: null, unit: null };
+    const unit = m[2] ? m[2].toUpperCase() : null;
+    return { num, unit };
+  }
+
+  function unitToBytesMult(unit) {
+    const u = (unit || "").toUpperCase();
+    return u === "KB" ? 1024 :
+           u === "MB" ? 1024 ** 2 :
+           u === "GB" ? 1024 ** 3 :
+           u === "TB" ? 1024 ** 4 :
+           u === "PB" ? 1024 ** 5 : 1;
+  }
+
+  function headerWithUnit(h, unitTag) {
+    const base = String(h || "").trim();
+    if (!unitTag) return base;
+    const tag = String(unitTag).trim();
+    if (!tag) return base;
+    // avoid double-tagging
+    if (base.toLowerCase().includes(`(${tag.toLowerCase()})`)) return base;
+    return `${base} (${tag})`;
+  }
+
+  function transformAoaForXlsx(aoa) {
+    // returns { aoa, meta:{ sizeCols:[{idx, unitTag}]} }
+    if (!Array.isArray(aoa) || aoa.length === 0) return { aoa, meta: { sizeCols: [] } };
+
+    const headers = (aoa[0] || []).map(h => String(h ?? "").trim());
+    const dataRows = aoa.slice(1);
+
+    const sizeCols = [];
+
+    for (let c = 0; c < headers.length; c++) {
+      const h = headers[c];
+      const headerSuggests = looksLikeSizeHeader(h);
+
+      // scan values for unit suffix
+      let unitSet = new Set();
+      let parsedCount = 0;
+      let nonEmptyCount = 0;
+
+      for (const r of dataRows) {
+        const v = r[c];
+        if (v == null || String(v).trim() === "") continue;
+        nonEmptyCount++;
+
+        const p = parseSizeValue(v);
+        if (p.num == null) continue;
+        parsedCount++;
+        if (p.unit) unitSet.add(p.unit);
+      }
+
+      // decide if size column
+      // - strong if header suggests AND at least some numeric parses
+      // - or if many values parse with units
+      const unitLike = unitSet.size > 0;
+      const parseRatio = nonEmptyCount ? (parsedCount / nonEmptyCount) : 0;
+      const isSize = (headerSuggests && parsedCount > 0) || (unitLike && parseRatio >= 0.5);
+
+      if (!isSize) continue;
+
+      // determine unit strategy:
+      // - single unit: keep numeric in that unit, header shows unit (GB/TB/MB...)
+      // - multiple units: convert to bytes, header shows bytes
+      // - no units found: treat as raw
+      let unitTag = "raw";
+      let mode = "raw"; // "raw" | "single" | "bytes"
+      let singleUnit = null;
+
+      if (unitSet.size === 1) {
+        singleUnit = Array.from(unitSet)[0];
+        unitTag = singleUnit;
+        mode = "single";
+      } else if (unitSet.size > 1) {
+        unitTag = "bytes";
+        mode = "bytes";
+      } else {
+        unitTag = "raw";
+        mode = "raw";
+      }
+
+      sizeCols.push({ idx: c, unitTag, mode, singleUnit });
+    }
+
+    if (!sizeCols.length) return { aoa, meta: { sizeCols: [] } };
+
+    // clone to avoid mutating original reference
+    const out = aoa.map(r => r.slice());
+
+    // update headers with unit tags
+    for (const sc of sizeCols) {
+      out[0][sc.idx] = headerWithUnit(headers[sc.idx], sc.unitTag);
+    }
+
+    // convert values
+    for (let r = 1; r < out.length; r++) {
+      for (const sc of sizeCols) {
+        const v = out[r][sc.idx];
+        const p = parseSizeValue(v);
+        if (p.num == null) {
+          // If it's empty or unparseable, leave as-is
+          continue;
+        }
+
+        if (sc.mode === "single") {
+          // If value has a different unit (unexpected), convert to the header unit to keep column consistent
+          if (p.unit && p.unit !== sc.singleUnit) {
+            const bytes = p.num * unitToBytesMult(p.unit);
+            const numInUnit = bytes / unitToBytesMult(sc.singleUnit);
+            out[r][sc.idx] = numInUnit;
+          } else {
+            out[r][sc.idx] = p.num;
+          }
+        } else if (sc.mode === "bytes") {
+          const unit = p.unit || "raw";
+          const bytes = p.num * (p.unit ? unitToBytesMult(p.unit) : 1);
+          out[r][sc.idx] = bytes;
+        } else {
+          // raw: strip any unit if present, otherwise keep number
+          out[r][sc.idx] = p.num;
+        }
+      }
+    }
+
+    // totals row
+    const totals = new Array(headers.length).fill("");
+    totals[0] = "TOTAL";
+
+    for (const sc of sizeCols) {
+      let sum = 0;
+      let saw = false;
+      for (let r = 1; r < out.length; r++) {
+        const v = out[r][sc.idx];
+        const num = typeof v === "number" ? v : parseFloat(String(v).replace(/,/g, ""));
+        if (Number.isFinite(num)) {
+          sum += num;
+          saw = true;
+        }
+      }
+      if (saw) totals[sc.idx] = sum;
+    }
+
+    out.push(totals);
+
+    return { aoa: out, meta: { sizeCols } };
+  }
+
+  function exportOne(textareaId, sheetName, filenameBase) {
+    if (!ensureOfflineLibs()) {
+      alert("Missing offline library: XLSX. Put xlsx.full.min.js next to this HTML and refresh.");
+      return;
+    }
+    const delimiter = normDelimiter(el("delimiter").value);
+    const text = el(textareaId).value;
+
+    const aoaRaw = parseDelimited(text, delimiter);
+    if (!aoaRaw.length) {
+      alert("Nothing to export — paste or import some delimited output first.");
+      return;
+    }
+
+    const { aoa } = transformAoaForXlsx(aoaRaw);
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    XLSX.utils.book_append_sheet(wb, ws, toSafeSheetName(sheetName));
+
+    XLSX.writeFile(wb, `${filenameBase}.xlsx`);
+  }
+
+  function exportAll() {
+    if (!ensureOfflineLibs()) {
+      alert("Missing offline library: XLSX. Put xlsx.full.min.js next to this HTML and refresh.");
+      return;
+    }
+    const delimiter = normDelimiter(el("delimiter").value);
+
+    const sources = [
+      { id: "pasteAgg",      sheet: "Aggregates" },
+      { id: "pasteVol",      sheet: "Volumes" },
+      { id: "pasteVolSpace", sheet: "Vol_Show_Space" },
+      { id: "pasteSnaps",    sheet: "Snapshots" },
+      { id: "pasteEff",      sheet: "Efficiency" },
+      { id: "pasteQtree",    sheet: "Qtrees" },
+      { id: "pasteLun",      sheet: "LUNs" },
+      { id: "pasteCifs",     sheet: "CIFS_Shares" }
+    ];
+
+    const wb = XLSX.utils.book_new();
+    let added = 0;
+
+    for (const s of sources) {
+      const txt = el(s.id).value;
+      const aoaRaw = parseDelimited(txt, delimiter);
+      if (!aoaRaw.length) continue;
+
+      const { aoa } = transformAoaForXlsx(aoaRaw);
+
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      XLSX.utils.book_append_sheet(wb, ws, toSafeSheetName(s.sheet));
+      added++;
+    }
+
+    if (!added) {
+      alert("Nothing to export — paste or import at least one section’s output first.");
+      return;
+    }
+
+    const stamp = new Date().toISOString().replace(/[:.]/g,"-").slice(0,19);
+    XLSX.writeFile(wb, `ontap_export_${stamp}.xlsx`);
+  }
+
+  // --- Offline file import into a textarea ---
+  function importFileInto(textareaId, file) {
+    if (!file) {
+      alert("Choose a file first.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      el(textareaId).value = String(reader.result || "");
+      refreshChartColumns();
+      alert(`Imported into ${textareaId}.`);
+    };
+    reader.onerror = () => alert("Failed to read file.");
+    reader.readAsText(file);
+  }
+
+  // --- Charting ---
+  let chartInstance = null;
+
+  function parseOntapNumber(raw) {
+    if (raw == null) return NaN;
+    let s = String(raw).trim();
+    if (!s) return NaN;
+
+    s = s.replace(/,/g, "");
+
+    if (s.endsWith("%")) {
+      const n = parseFloat(s.slice(0, -1));
+      return Number.isFinite(n) ? n : NaN;
+    }
+
+    const m = s.match(/^(-?\d+(?:\.\d+)?)(?:\s*([KMGTP]B))?$/i);
+    if (m) {
+      const num = parseFloat(m[1]);
+      if (!Number.isFinite(num)) return NaN;
+      const unit = (m[2] || "").toUpperCase();
+      const mult = unit === "KB" ? 1024 :
+                   unit === "MB" ? 1024**2 :
+                   unit === "GB" ? 1024**3 :
+                   unit === "TB" ? 1024**4 :
+                   unit === "PB" ? 1024**5 : 1;
+      return num * mult;
+    }
+
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  function refreshChartColumns() {
+    const delimiter = normDelimiter(el("delimiter").value);
+    const srcId = el("chartSource").value;
+    const aoa = parseDelimited(el(srcId).value, delimiter);
+
+    const labelSel = el("chartLabelCol");
+    const valueSel = el("chartValueCol");
+
+    labelSel.innerHTML = "";
+    valueSel.innerHTML = "";
+
+    if (!aoa.length) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "(paste/import data first)";
+      labelSel.appendChild(opt.cloneNode(true));
+      valueSel.appendChild(opt);
+      return;
+    }
+
+    const headers = aoa[0].map(h => h.trim());
+    headers.forEach(h => {
+      const o1 = document.createElement("option");
+      o1.value = h;
+      o1.textContent = h;
+      labelSel.appendChild(o1);
+
+      const o2 = document.createElement("option");
+      o2.value = h;
+      o2.textContent = h;
+      valueSel.appendChild(o2);
+    });
+
+    const preferLabel =
+      headers.includes("volume") ? "volume" :
+      headers.includes("lun") ? "lun" :
+      headers.includes("path") ? "path" :
+      headers.includes("aggregate") ? "aggregate" :
+      headers.includes("share-name") ? "share-name" :
+      headers[0];
+
+    const preferValue =
+      headers.includes("percent-used") ? "percent-used" :
+      headers.includes("logical-used-percent") ? "logical-used-percent" :
+      headers.includes("total-used-percent") ? "total-used-percent" :
+      headers.includes("used") ? "used" :
+      headers.includes("logical-used") ? "logical-used" :
+      headers.includes("total-used") ? "total-used" :
+      headers.includes("size-used") ? "size-used" :
+      headers.includes("size-used-by-snapshots") ? "size-used-by-snapshots" :
+      headers[1] || headers[0];
+
+    labelSel.value = preferLabel;
+    valueSel.value = preferValue;
+  }
+
+  function buildChart() {
+    if (!ensureOfflineLibs()) {
+      alert("Missing offline library: Chart.js. Put chart.umd.min.js next to this HTML and refresh.");
+      return;
+    }
+
+    const delimiter = normDelimiter(el("delimiter").value);
+    const srcId = el("chartSource").value;
+    const aoa = parseDelimited(el(srcId).value, delimiter);
+    const status = el("chartStatus");
+
+    if (aoa.length < 2) {
+      status.textContent = "No data: paste/import a header row + at least one data row.";
+      return;
+    }
+
+    const headers = aoa[0].map(h => h.trim());
+    const labelCol = el("chartLabelCol").value;
+    const valueCol = el("chartValueCol").value;
+
+    const li = headers.indexOf(labelCol);
+    const vi = headers.indexOf(valueCol);
+
+    if (li < 0 || vi < 0) {
+      status.textContent = "Pick valid label/value columns.";
+      return;
+    }
+
+    const rows = aoa.slice(1).map(r => ({
+      label: (r[li] ?? "").trim(),
+      value: parseOntapNumber(r[vi])
+    }))
+    .filter(x => x.label.length > 0 && Number.isFinite(x.value));
+
+    if (!rows.length) {
+      status.textContent = "No numeric values found in the selected value column.";
+      return;
+    }
+
+    const sortDir = el("chartSort").value;
+    rows.sort((a,b) => sortDir === "asc" ? (a.value - b.value) : (b.value - a.value));
+
+    const topN = Math.max(1, Math.min(200, parseInt(el("chartTopN").value || "20", 10)));
+    const sliced = rows.slice(0, topN);
+
+    const labels = sliced.map(x => x.label);
+    const data = sliced.map(x => x.value);
+
+    const orientation = el("chartOrientation").value;
+    const indexAxis = orientation === "horizontal" ? "y" : "x";
+
+    if (chartInstance) {
+      chartInstance.destroy();
+      chartInstance = null;
+    }
+
+    const ctx = el("chartCanvas").getContext("2d");
+    chartInstance = new Chart(ctx, {
+      type: "bar",
+      data: { labels, datasets: [{ label: `${valueCol} (Top ${topN})`, data }] },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis,
+        plugins: { legend: { display: true }, tooltip: { enabled: true } },
+        scales: {
+          x: { ticks: { color: "#a9b4d6" }, grid: { color: "rgba(35,48,90,0.35)" } },
+          y: { ticks: { color: "#a9b4d6" }, grid: { color: "rgba(35,48,90,0.35)" } }
+        }
+      }
+    });
+
+    status.textContent = `Chart built from ${srcId}: label=${labelCol}, value=${valueCol}, numeric_rows=${rows.length}.`;
+  }
+
+  function clearChart() {
+    if (chartInstance) {
+      chartInstance.destroy();
+      chartInstance = null;
+    }
+    el("chartStatus").textContent = "";
+  }
+
+  /* =========================
+     Defaults + initialization
+     ========================= */
+
+  const DEFAULT_SELECTIONS = {
+    fieldsVol: [
+      "vserver","volume","state","size","used","available","percent-used","aggregate","node",
+      "junction-path","security-style","unix-permissions","policy",
+      "percent-snapshot-space","snapshot-space-used","size-used-by-snapshots",
+      "logical-used","logical-used-percent","logical-available",
+      "physical-used","physical-used-percent",
+      "sis-space-saved","sis-space-saved-percent",
+      "dedupe-space-saved","dedupe-space-saved-percent",
+      "compression-space-saved","compression-space-saved-percent",
+      "qos-policy-group","qos-adaptive-policy-group"
+    ],
+    fieldsVolSpace: [
+      "vserver","volume","aggregate",
+      "user-data","user-data-percent",
+      "filesystem-metadata","filesystem-metadata-percent",
+      "snapshot-reserve","snapshot-reserve-percent",
+      "snapshot-spill","snapshot-spill-percent",
+      "dedupe-metafiles","dedupe-metafiles-percent",
+      "quota-metafiles","quota-metafiles-percent",
+      "inodes","inodes-percent",
+      "total-used","total-used-percent",
+      "physical-used","physical-used-percent",
+      "logical-used","logical-used-percent",
+      "logical-available"
+    ],
+    fieldsSnaps: ["vserver","volume","snapshot","create-time","state","size","blocks","usedblocks","expiry-time","comment","snapmirror-label"],
+    fieldsEff: [
+      "vserver","volume","path","state","op-status","progress","policy","schedule","type",
+      "compression","inline-compression","inline-dedupe","data-compaction",
+      "cross-volume-inline-dedupe","cross-volume-background-dedupe",
+      "storage-efficiency-mode","logical-data-size","logical-data-percent",
+      "last-success-op-begin","last-success-op-end","last-op-state","last-op-error"
+    ],
+    fieldsQtree: ["vserver","volume","qtree","qtree-path","security-style","oplock-mode","user","group","unix-permissions","status","export-policy","is-export-policy-inherited","qos-policy-group"],
+    fieldsLun: [
+      "vserver","path","volume","qtree","lun","size","ostype","space-reserve","space-allocation",
+      "serial","state","mapped","read-only","size-used","node","qos-policy-group","qos-adaptive-policy-group",
+      "caching-policy","comment","uuid","creation-timestamp"
+    ],
+    fieldsCifs: ["vserver","share-name","cifs-server","path","comment","volume","share-properties","acl","offline-files","max-connections-per-share","force-group-for-create"]
+  };
+
+  let PICKERS = {};
+
+  async function resetDefaults() {
+    el("delimiter").value = ",";
+    el("commentPrefix").value = "#";
+    el("showAllFields").checked = true;
+    el("unitsRaw").checked = true;
+    el("unitsSpecifier").value = "(none)";
+    el("rows0").checked = true;
+    el("svm").value = "";
+    el("scope").value = "whereSupported";
+
+    await DB.del("unitsSpecifier");
+    await DB.del("uiSettings");
+
+    for (const k of Object.keys(DEFAULT_SELECTIONS)) await DB.del(k);
+
+    for (const k of Object.keys(DEFAULT_SELECTIONS)) {
+      setInputFields(k, DEFAULT_SELECTIONS[k]);
+      if (PICKERS[k]) PICKERS[k].setCheckedFromList(DEFAULT_SELECTIONS[k]);
+    }
+
+    genPuttyBlock();
+  }
+
+  async function loadSelectionsAndInitPickers() {
+    for (const k of Object.keys(DEFAULT_SELECTIONS)) setInputFields(k, DEFAULT_SELECTIONS[k]);
+
+    PICKERS.fieldsVol = renderPicker("fieldsVol", "volume show");
+    PICKERS.fieldsVolSpace = renderPicker("fieldsVolSpace", "volume show-space");
+    PICKERS.fieldsSnaps = renderPicker("fieldsSnaps", "volume snapshot show");
+    PICKERS.fieldsEff = renderPicker("fieldsEff", "volume efficiency show");
+    PICKERS.fieldsQtree = renderPicker("fieldsQtree", "volume qtree show");
+    PICKERS.fieldsLun = renderPicker("fieldsLun", "lun show");
+    PICKERS.fieldsCifs = renderPicker("fieldsCifs", "vserver cifs share show");
+
+    for (const k of Object.keys(DEFAULT_SELECTIONS)) {
+      const saved = await DB.get(k);
+      const list = Array.isArray(saved) && saved.length ? saved : DEFAULT_SELECTIONS[k];
+      const valid = new Set((FIELD_CATALOG[k] || []).map(x => x.f));
+      const cleaned = list.filter(f => valid.has(f));
+
+      setInputFields(k, cleaned);
+      if (PICKERS[k]) PICKERS[k].setCheckedFromList(cleaned);
+    }
+
+    // Load saved unit preference
+    const unitSaved = await DB.get("unitsSpecifier");
+    if (typeof unitSaved === "string") el("unitsSpecifier").value = unitSaved;
+
+    // Load UI settings (if present)
+    const uiSaved = await DB.get("uiSettings");
+    if (uiSaved && typeof uiSaved === "object") {
+      if (typeof uiSaved.delimiter === "string") el("delimiter").value = uiSaved.delimiter;
+      if (typeof uiSaved.commentPrefix === "string") el("commentPrefix").value = uiSaved.commentPrefix;
+      if (typeof uiSaved.showAllFields === "boolean") el("showAllFields").checked = uiSaved.showAllFields;
+      if (typeof uiSaved.unitsRaw === "boolean") el("unitsRaw").checked = uiSaved.unitsRaw;
+      if (typeof uiSaved.rows0 === "boolean") el("rows0").checked = uiSaved.rows0;
+      if (typeof uiSaved.svm === "string") el("svm").value = uiSaved.svm;
+      if (typeof uiSaved.scope === "string") el("scope").value = uiSaved.scope;
+    }
+
+    genPuttyBlock();
+  }
+
+  function clearAllPastes() {
+    ["pasteAgg","pasteVol","pasteVolSpace","pasteSnaps","pasteEff","pasteQtree","pasteLun","pasteCifs"]
+      .forEach(id => el(id).value = "");
+    refreshChartColumns();
+  }
+
+  async function copyBlock() {
+    const txt = el("out").value;
+    try {
+      await navigator.clipboard.writeText(txt);
+      alert("Copied PuTTY block!");
+    } catch {
+      el("out").focus();
+      el("out").select();
+      document.execCommand("copy");
+      alert("Copied PuTTY block (fallback)!");
+    }
+  }
+
+  /* =========================
+     Export / Import config JSON
+     - Now includes the pasted CSV/text boxes + chart UI selections
+     ========================= */
+
+  const CONFIG_KEYS = ["fieldsVol","fieldsVolSpace","fieldsSnaps","fieldsEff","fieldsQtree","fieldsLun","fieldsCifs"];
+  const DATA_KEYS = ["pasteAgg","pasteVol","pasteVolSpace","pasteSnaps","pasteEff","pasteQtree","pasteLun","pasteCifs"];
+
+  function collectCurrentConfig() {
+    const fields = {};
+    for (const k of CONFIG_KEYS) {
+      fields[k] = parseFieldList(el(k).value);
+    }
+
+    const ui = {
+      delimiter: el("delimiter").value,
+      commentPrefix: el("commentPrefix").value,
+      showAllFields: el("showAllFields").checked,
+      unitsRaw: el("unitsRaw").checked,
+      unitsSpecifier: el("unitsSpecifier").value,
+      rows0: el("rows0").checked,
+      svm: el("svm").value,
+      scope: el("scope").value
+    };
+
+    const data = {};
+    for (const k of DATA_KEYS) data[k] = el(k).value || "";
+
+    const charts = {
+      chartSource: el("chartSource").value,
+      chartTopN: el("chartTopN").value,
+      chartLabelCol: el("chartLabelCol").value,
+      chartValueCol: el("chartValueCol").value,
+      chartOrientation: el("chartOrientation").value,
+      chartSort: el("chartSort").value
+    };
+
+    return {
+      schema: "ontap-cli-exporter-config",
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      ui,
+      fields,
+      data,
+      charts
+    };
+  }
+
+  function downloadJson(obj, filename) {
+    const json = JSON.stringify(obj, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function exportFieldConfig() {
+    const cfg = collectCurrentConfig();
+    const stamp = new Date().toISOString().replace(/[:.]/g,"-").slice(0,19);
+    downloadJson(cfg, `ontap_config_and_data_${stamp}.json`);
+  }
+
+  function isPlainObject(v) {
+    return !!v && typeof v === "object" && !Array.isArray(v);
+  }
+
+  function filterToValidFields(key, list) {
+    const valid = new Set((FIELD_CATALOG[key] || []).map(x => x.f));
+    return (Array.isArray(list) ? list : [])
+      .map(x => String(x).trim())
+      .filter(x => valid.has(x));
+  }
+
+  async function applyImportedConfig(cfg) {
+    if (!isPlainObject(cfg)) throw new Error("Invalid JSON (not an object).");
+    if (cfg.schema !== "ontap-cli-exporter-config") throw new Error("Invalid schema (not an ONTAP exporter config).");
+    if (cfg.version !== 1) throw new Error("Unsupported config version.");
+
+    // UI
+    const ui = cfg.ui;
+    if (isPlainObject(ui)) {
+      if (typeof ui.delimiter === "string") el("delimiter").value = ui.delimiter;
+      if (typeof ui.commentPrefix === "string") el("commentPrefix").value = ui.commentPrefix;
+      if (typeof ui.showAllFields === "boolean") el("showAllFields").checked = ui.showAllFields;
+      if (typeof ui.unitsRaw === "boolean") el("unitsRaw").checked = ui.unitsRaw;
+      if (typeof ui.unitsSpecifier === "string") el("unitsSpecifier").value = ui.unitsSpecifier;
+      if (typeof ui.rows0 === "boolean") el("rows0").checked = ui.rows0;
+      if (typeof ui.svm === "string") el("svm").value = ui.svm;
+      if (typeof ui.scope === "string") el("scope").value = ui.scope;
+
+      await DB.set("unitsSpecifier", el("unitsSpecifier").value);
+      await DB.set("uiSettings", {
+        delimiter: el("delimiter").value,
+        commentPrefix: el("commentPrefix").value,
+        showAllFields: el("showAllFields").checked,
+        unitsRaw: el("unitsRaw").checked,
+        rows0: el("rows0").checked,
+        svm: el("svm").value,
+        scope: el("scope").value
+      });
+    }
+
+    // Fields
+    const fobj = cfg.fields;
+    if (isPlainObject(fobj)) {
+      for (const k of CONFIG_KEYS) {
+        if (k in fobj) {
+          const cleaned = filterToValidFields(k, fobj[k]);
+          setInputFields(k, cleaned);
+          if (PICKERS[k]) PICKERS[k].setCheckedFromList(cleaned);
+          await DB.set(k, cleaned);
+        }
+      }
+    }
+
+    // Pasted outputs (summary chart CSV boxes)
+    const dobj = cfg.data;
+    if (isPlainObject(dobj)) {
+      for (const k of DATA_KEYS) {
+        if (typeof dobj[k] === "string") el(k).value = dobj[k];
+      }
+    }
+
+    // Chart UI settings (optional)
+    const cobj = cfg.charts;
+    if (isPlainObject(cobj)) {
+      if (typeof cobj.chartSource === "string") el("chartSource").value = cobj.chartSource;
+      if (typeof cobj.chartTopN === "string" || typeof cobj.chartTopN === "number") el("chartTopN").value = String(cobj.chartTopN);
+      // label/value columns depend on data source; set after refresh
+      if (typeof cobj.chartOrientation === "string") el("chartOrientation").value = cobj.chartOrientation;
+      if (typeof cobj.chartSort === "string") el("chartSort").value = cobj.chartSort;
+      refreshChartColumns();
+      if (typeof cobj.chartLabelCol === "string") el("chartLabelCol").value = cobj.chartLabelCol;
+      if (typeof cobj.chartValueCol === "string") el("chartValueCol").value = cobj.chartValueCol;
+    } else {
+      refreshChartColumns();
+    }
+
+    genPuttyBlock();
+  }
+
+  async function importFieldConfigFromFile(file) {
+    if (!file) return;
+    const text = await file.text();
+    let cfg;
+    try {
+      cfg = JSON.parse(text);
+    } catch {
+      throw new Error("Selected file is not valid JSON.");
+    }
+    await applyImportedConfig(cfg);
+  }
+
+  /* =========================
+     Wire up UI
+     ========================= */
+
+  el("btnGenerate").addEventListener("click", genPuttyBlock);
+  el("btnCopy").addEventListener("click", copyBlock);
+  el("btnReset").addEventListener("click", () => { resetDefaults(); });
+
+  el("btnExportAll").addEventListener("click", exportAll);
+  el("btnClearAll").addEventListener("click", clearAllPastes);
+
+  document.querySelectorAll(".btnExportOne").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const target = btn.getAttribute("data-target");
+      const sheet = btn.getAttribute("data-sheet");
+      exportOne(target, sheet, sheet);
+    });
+  });
+
+  el("btnImport").addEventListener("click", () => {
+    const target = el("importTarget").value;
+    const file = el("importFile").files && el("importFile").files[0];
+    importFileInto(target, file);
+  });
+
+  el("chartSource").addEventListener("change", refreshChartColumns);
+
+  // Regenerate on settings change + persist UI settings
+  const persistUiDebounced = (() => {
+    let t = null;
+    return () => {
+      clearTimeout(t);
+      t = setTimeout(async () => {
+        await DB.set("uiSettings", {
+          delimiter: el("delimiter").value,
+          commentPrefix: el("commentPrefix").value,
+          showAllFields: el("showAllFields").checked,
+          unitsRaw: el("unitsRaw").checked,
+          rows0: el("rows0").checked,
+          svm: el("svm").value,
+          scope: el("scope").value
+        });
+      }, 250);
+    };
+  })();
+
+  el("delimiter").addEventListener("change", () => { refreshChartColumns(); regenDebounced(); persistUiDebounced(); });
+  el("commentPrefix").addEventListener("change", () => { regenDebounced(); persistUiDebounced(); });
+  el("showAllFields").addEventListener("change", () => { regenDebounced(); persistUiDebounced(); });
+
+  el("rows0").addEventListener("change", () => { regenDebounced(); persistUiDebounced(); });
+  el("svm").addEventListener("input", () => { regenDebounced(); persistUiDebounced(); });
+  el("scope").addEventListener("change", () => { regenDebounced(); persistUiDebounced(); });
+
+  // Units controls
+  el("unitsRaw").addEventListener("change", () => { regenDebounced(); persistUiDebounced(); });
+  el("unitsSpecifier").addEventListener("change", async () => {
+    await DB.set("unitsSpecifier", el("unitsSpecifier").value);
+    if (el("unitsSpecifier").value !== "(none)") el("unitsRaw").checked = false;
+    regenDebounced();
+    persistUiDebounced();
+  });
+
+  el("btnBuildChart").addEventListener("click", buildChart);
+  el("btnClearChart").addEventListener("click", clearChart);
+
+  // Config export/import buttons
+  el("btnExportConfig").addEventListener("click", exportFieldConfig);
+
+  el("btnImportConfig").addEventListener("click", () => {
+    el("configFile").value = "";
+    el("configFile").click();
+  });
+
+  el("configFile").addEventListener("change", async () => {
+    const file = el("configFile").files && el("configFile").files[0];
+    if (!file) return;
+    try {
+      await importFieldConfigFromFile(file);
+      alert("Imported configuration successfully.");
+    } catch (e) {
+      alert(`Import failed: ${e && e.message ? e.message : String(e)}`);
+    }
+  });
+
+  // init
+  ensureOfflineLibs();
+  loadSelectionsAndInitPickers().then(() => {
+    refreshChartColumns();
+  });
+</script>
+</body>
+</html>
