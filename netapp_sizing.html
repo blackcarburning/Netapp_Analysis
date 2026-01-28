@@ -288,9 +288,9 @@
 
     <h2 style="margin-top:14px;">Field sets (editable + tick-box picker)</h2>
 
-    <label for="fieldsAgg">Aggregates</label>
-    <input id="fieldsAgg" type="text" value="" placeholder="(aggregate commands don't use -fields here; leave blank)" />
-    <div class="mini" style="margin-top:6px;">Aggregates commands are unchanged (no -fields). Everything else below supports -fields.</div>
+    <label for="fieldsAgg">storage aggregate show -fields</label>
+    <input id="fieldsAgg" type="text" />
+    <div id="picker_fieldsAgg"></div>
 
     <div style="height:10px"></div>
 
@@ -668,6 +668,75 @@
      ========================= */
 
   const FIELD_CATALOG = {
+    fieldsAgg: [
+      { f:"aggregate", d:"Aggregate" },
+      { f:"storage-type", d:"Storage Type" },
+      { f:"chksumstyle", d:"Checksum Style" },
+      { f:"diskcount", d:"Number Of Disks" },
+      { f:"mirror", d:"Is Mirrored" },
+      { f:"disklist", d:"Disks for First Plex" },
+      { f:"mirror-disklist", d:"Disks for Mirrored Plex" },
+      { f:"node", d:"Node" },
+      { f:"free-space-realloc", d:"Free Space Reallocation" },
+      { f:"ha-policy", d:"HA Policy" },
+      { f:"percent-snapshot-space", d:"Space Reserved for Snapshot Copies" },
+      { f:"space-nearly-full-threshold-percent", d:"Aggregate Nearly Full Threshold Percent" },
+      { f:"space-full-threshold-percent", d:"Aggregate Full Threshold Percent" },
+      { f:"hybrid-enabled", d:"Hybrid Enabled" },
+      { f:"availsize", d:"Available Size" },
+      { f:"chksumenabled", d:"Checksum Enabled" },
+      { f:"chksumstatus", d:"Checksum Status" },
+      { f:"cluster", d:"Cluster" },
+      { f:"cluster-id", d:"Home Cluster ID" },
+      { f:"dr-home-id", d:"DR Home ID" },
+      { f:"dr-home-name", d:"DR Home Name" },
+      { f:"has-mroot", d:"Has Mroot Volume" },
+      { f:"has-partner-mroot", d:"Has Partner Node Mroot Volume" },
+      { f:"home-id", d:"Home ID" },
+      { f:"home-name", d:"Home Name" },
+      { f:"hybrid-cache-size-total", d:"Total Hybrid Cache Size" },
+      { f:"hybrid", d:"Hybrid" },
+      { f:"inconsistent", d:"Inconsistent" },
+      { f:"is-home", d:"Is Aggregate Home" },
+      { f:"maxraidsize", d:"Max RAID Size" },
+      { f:"cache-raid-group-size", d:"Flash Pool SSD Tier Maximum RAID Group Size" },
+      { f:"owner-id", d:"Owner ID" },
+      { f:"owner-name", d:"Owner Name" },
+      { f:"percent-used", d:"Used Percentage" },
+      { f:"plexes", d:"Plexes" },
+      { f:"raidgroups", d:"RAID Groups" },
+      { f:"raidstatus", d:"RAID Status" },
+      { f:"raidtype", d:"RAID Type" },
+      { f:"resyncsnaptime", d:"SyncMirror Resync Snapshot Frequency in Minutes" },
+      { f:"root", d:"Is Root" },
+      { f:"sis-metadata-space-used", d:"Space Used by Metadata for Volume Efficiency" },
+      { f:"size", d:"Size" },
+      { f:"state", d:"State" },
+      { f:"usedsize", d:"Used Size" },
+      { f:"uses-shared-disks", d:"Uses Shared Disks" },
+      { f:"volcount", d:"Number Of Volumes" },
+      { f:"physical-used", d:"Total Physical Used Size" },
+      { f:"physical-used-percent", d:"Physical Used Percentage" },
+      { f:"snaplock-type", d:"SnapLock Type" },
+      { f:"is-nve-capable", d:"Is NVE Capable" },
+      { f:"resync-priority", d:"Resynchronization Priority" },
+      { f:"data-compaction-space-saved", d:"Space Saved by Data Compaction" },
+      { f:"data-compaction-space-saved-percent", d:"Percentage Saved by Data Compaction" },
+      { f:"data-compacted-count", d:"Amount of Compacted Data" },
+      { f:"creation-timestamp", d:"Timestamp of Aggregate Creation" },
+      { f:"single-instance-data-logging", d:"Enable SIDL" },
+      { f:"composite", d:"Composite" },
+      { f:"is-fabricpool-mirrored", d:"Is FabricPool Mirrored" },
+      { f:"composite-capacity-tier-used", d:"Capacity Tier Used Size" },
+      { f:"sis-space-saved", d:"Space Saved by Storage Efficiency" },
+      { f:"sis-space-saved-percent", d:"Percentage of Space Saved by Storage Efficiency" },
+      { f:"sis-shared-count", d:"Amount of Shared Bytes Count by Storage Efficiency" },
+      { f:"is-inactive-data-reporting-enabled", d:"Inactive Data Reporting Enabled" },
+      { f:"inactive-data-reporting-start-timestamp", d:"Timestamp when Inactive Data Reporting was Enabled" },
+      { f:"encrypt-with-aggr-key", d:"Enable Aggregate Level Encryption" },
+      { f:"drive-protection-enabled", d:"Aggregate Uses Data Protected SEDs" },
+      { f:"azcs-read-optimization", d:"AZCS Read Optimization" }
+    ],
     fieldsQtree: [
       { f:"vserver", d:"Vserver Name" },
       { f:"volume", d:"Volume Name" },
@@ -1141,9 +1210,18 @@
     lines.push("");
 
     lines.push(sectionHeader(prefix, "AGGREGATES / LOCAL TIERS"));
-    lines.push(`storage aggregate show`);
-    lines.push(`storage aggregate show-space`);
-    lines.push(`storage aggregate show-efficiency`);
+    {
+      const fields = el("fieldsAgg").value.trim();
+      if (fields) {
+        lines.push(`storage aggregate show -fields ${fields}`);
+        lines.push(`storage aggregate show-space -fields ${fields}`);
+        lines.push(`storage aggregate show-efficiency -fields ${fields}`);
+      } else {
+        lines.push(`storage aggregate show`);
+        lines.push(`storage aggregate show-space`);
+        lines.push(`storage aggregate show-efficiency`);
+      }
+    }
     lines.push("");
 
     lines.push(sectionHeader(prefix, "VOLUMES (INVENTORY)"));
@@ -1210,6 +1288,7 @@
     lines.push("");
 
     lines.push(sectionHeader(prefix, "FIELD DISCOVERY (REFERENCE)"));
+    lines.push(`${prefix} storage aggregate show -fields ?`);
     lines.push(`${prefix} volume show -fields ?`);
     lines.push(`${prefix} volume show-space -fields ?`);
     lines.push(`${prefix} volume snapshot show -fields ?`);
@@ -1681,6 +1760,14 @@
      ========================= */
 
   const DEFAULT_SELECTIONS = {
+    fieldsAgg: [
+      "aggregate","node","state","size","availsize","usedsize","percent-used",
+      "storage-type","raidtype","raidstatus","diskcount","volcount",
+      "physical-used","physical-used-percent",
+      "sis-space-saved","sis-space-saved-percent",
+      "data-compaction-space-saved","data-compaction-space-saved-percent",
+      "snaplock-type","is-nve-capable","encrypt-with-aggr-key"
+    ],
     fieldsVol: [
       "vserver","volume","state","size","used","available","percent-used","aggregate","node",
       "junction-path","security-style","unix-permissions","policy",
@@ -1751,6 +1838,7 @@
   async function loadSelectionsAndInitPickers() {
     for (const k of Object.keys(DEFAULT_SELECTIONS)) setInputFields(k, DEFAULT_SELECTIONS[k]);
 
+    PICKERS.fieldsAgg = renderPicker("fieldsAgg", "storage aggregate show");
     PICKERS.fieldsVol = renderPicker("fieldsVol", "volume show");
     PICKERS.fieldsVolSpace = renderPicker("fieldsVolSpace", "volume show-space");
     PICKERS.fieldsSnaps = renderPicker("fieldsSnaps", "volume snapshot show");
@@ -1812,7 +1900,7 @@
      - Now includes the pasted CSV/text boxes + chart UI selections
      ========================= */
 
-  const CONFIG_KEYS = ["fieldsVol","fieldsVolSpace","fieldsSnaps","fieldsEff","fieldsQtree","fieldsLun","fieldsCifs"];
+  const CONFIG_KEYS = ["fieldsAgg","fieldsVol","fieldsVolSpace","fieldsSnaps","fieldsEff","fieldsQtree","fieldsLun","fieldsCifs"];
   const DATA_KEYS = ["pasteAgg","pasteVol","pasteVolSpace","pasteSnaps","pasteEff","pasteQtree","pasteLun","pasteCifs"];
 
   function collectCurrentConfig() {
