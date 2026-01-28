@@ -415,6 +415,7 @@
         </select>
       </div>
     </div>
+    <div class="tiny" style="margin-top:4px;">Conversion is applied to size-related columns. The from-unit is auto-detected from the data (e.g., GB, TB).</div>
 
     <div class="hint">
       Paste the ONTAP output for each command (including the header row). Lines starting with <code class="kbd">#</code> are ignored.
@@ -504,6 +505,7 @@
           </select>
         </div>
       </div>
+      <div class="tiny" style="margin-top:4px;">Note: Data with unit suffixes (e.g., "10GB") is automatically converted to bytes. Use "Raw (bytes)" as the from-unit for such data.</div>
 
       <div class="btns">
         <button id="btnBuildChart">Build chart</button>
@@ -1796,24 +1798,37 @@
     return Number.isFinite(n) ? n : NaN;
   }
 
+  // Unit multipliers relative to bytes (raw) for conversion
+  const UNIT_MULTIPLIERS = {
+    "raw": 1,
+    "KB": 1024,
+    "MB": 1024 * 1024,
+    "GB": 1024 * 1024 * 1024,
+    "TB": 1024 * 1024 * 1024 * 1024,
+    "PB": 1024 * 1024 * 1024 * 1024 * 1024
+  };
+
+  /**
+   * Convert a numeric value from one storage unit to another
+   * @param {number} value - The numeric value to convert
+   * @param {string} fromUnit - Source unit: "none", "raw", "KB", "MB", "GB", "TB", "PB"
+   * @param {string} toUnit - Target unit: "none", "raw", "KB", "MB", "GB", "TB", "PB"
+   * @returns {number} The converted value
+   */
   function convertUnit(value, fromUnit, toUnit) {
     if (fromUnit === "none" || toUnit === "none" || fromUnit === toUnit) {
       return value;
     }
     
-    // Define multipliers relative to bytes (raw)
-    const unitMultipliers = {
-      "raw": 1,
-      "KB": 1024,
-      "MB": 1024 * 1024,
-      "GB": 1024 * 1024 * 1024,
-      "TB": 1024 * 1024 * 1024 * 1024,
-      "PB": 1024 * 1024 * 1024 * 1024 * 1024
-    };
+    // Validate units
+    if (!UNIT_MULTIPLIERS[fromUnit] || !UNIT_MULTIPLIERS[toUnit]) {
+      console.warn(`Invalid unit conversion: ${fromUnit} to ${toUnit}`);
+      return value;
+    }
     
     // Convert to bytes first, then to target unit
-    const bytesValue = value * unitMultipliers[fromUnit];
-    const convertedValue = bytesValue / unitMultipliers[toUnit];
+    const bytesValue = value * UNIT_MULTIPLIERS[fromUnit];
+    const convertedValue = bytesValue / UNIT_MULTIPLIERS[toUnit];
     
     return convertedValue;
   }
@@ -1903,6 +1918,7 @@
     }
 
     // Get unit conversion settings
+    // Note: parseOntapNumber converts all values to bytes, so fromUnit should be "raw" or match the raw data format
     const fromUnit = el("chartUnitFrom").value;
     const toUnit = el("chartUnitTo").value;
 
@@ -1913,7 +1929,8 @@
     .filter(x => x.label.length > 0 && Number.isFinite(x.value))
     .map(x => ({
       label: x.label,
-      value: convertUnit(x.value, fromUnit, toUnit)
+      // parseOntapNumber returns bytes, so we convert from raw/bytes or the specified fromUnit
+      value: convertUnit(x.value, fromUnit === "none" ? "none" : (fromUnit || "raw"), toUnit)
     }));
 
     if (!rows.length) {
@@ -1953,9 +1970,9 @@
         plugins: {
           legend: {
             display: true,
-            position: 'top',
+            position: "top",
             labels: {
-              color: '#e9eefc',
+              color: "#e9eefc",
               font: {
                 size: 12
               }
@@ -1981,6 +1998,11 @@
     el("chartStatus").textContent = "";
   }
 
+  /**
+   * Export the current chart as a high-resolution PNG image
+   * Creates a 2x scaled version with white background for better quality and printing
+   * Minimum width of 1200px ensures readability
+   */
   function exportChartToPng() {
     const canvas = el("chartCanvas");
     if (!chartInstance) {
@@ -1988,32 +2010,41 @@
       return;
     }
     
-    // Create a larger canvas for better resolution
-    const scaleFactor = 2; // 2x resolution for crisp export
-    const exportCanvas = document.createElement("canvas");
-    const ctx = exportCanvas.getContext("2d");
-    
-    // Ensure minimum width for readability
-    const minWidth = 1200;
-    const baseWidth = Math.max(canvas.width, minWidth);
-    const baseHeight = canvas.height;
-    
-    exportCanvas.width = baseWidth * scaleFactor;
-    exportCanvas.height = baseHeight * scaleFactor;
-    
-    // Fill with white background
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
-    
-    // Draw the chart at higher resolution
-    ctx.scale(scaleFactor, scaleFactor);
-    ctx.drawImage(canvas, 0, 0, baseWidth, baseHeight);
-    
-    // Create download link
-    const link = document.createElement("a");
-    link.download = "chart_export.png";
-    link.href = exportCanvas.toDataURL("image/png", 1.0);
-    link.click();
+    try {
+      // Create a larger canvas for better resolution
+      const scaleFactor = 2; // 2x resolution for crisp export
+      const exportCanvas = document.createElement("canvas");
+      const ctx = exportCanvas.getContext("2d");
+      
+      if (!ctx) {
+        throw new Error("Failed to get canvas context");
+      }
+      
+      // Ensure minimum width for readability
+      const minWidth = 1200;
+      const baseWidth = Math.max(canvas.width, minWidth);
+      const baseHeight = canvas.height;
+      
+      exportCanvas.width = baseWidth * scaleFactor;
+      exportCanvas.height = baseHeight * scaleFactor;
+      
+      // Fill with white background
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+      
+      // Draw the chart at higher resolution
+      ctx.scale(scaleFactor, scaleFactor);
+      ctx.drawImage(canvas, 0, 0, baseWidth, baseHeight);
+      
+      // Create download link
+      const link = document.createElement("a");
+      link.download = "chart_export.png";
+      link.href = exportCanvas.toDataURL("image/png", 1.0);
+      link.click();
+    } catch (error) {
+      alert(`Failed to export chart: ${error.message}`);
+      console.error("Chart export error:", error);
+    }
   }
 
   /* =========================
