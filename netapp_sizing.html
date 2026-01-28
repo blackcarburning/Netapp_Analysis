@@ -288,9 +288,21 @@
 
     <h2 style="margin-top:14px;">Field sets (editable + tick-box picker)</h2>
 
-    <label for="fieldsAgg">storage aggregate show -fields</label>
-    <input id="fieldsAgg" type="text" />
-    <div id="picker_fieldsAgg"></div>
+    <label for="fieldsAggShow">storage aggregate show -fields</label>
+    <input id="fieldsAggShow" type="text" />
+    <div id="picker_fieldsAggShow"></div>
+
+    <div style="height:10px"></div>
+
+    <label for="fieldsAggSpace">storage aggregate show-space -fields</label>
+    <input id="fieldsAggSpace" type="text" />
+    <div id="picker_fieldsAggSpace"></div>
+
+    <div style="height:10px"></div>
+
+    <label for="fieldsAggEfficiency">storage aggregate show-efficiency -fields</label>
+    <input id="fieldsAggEfficiency" type="text" />
+    <div id="picker_fieldsAggEfficiency"></div>
 
     <div style="height:10px"></div>
 
@@ -668,7 +680,7 @@
      ========================= */
 
   const FIELD_CATALOG = {
-    fieldsAgg: [
+    fieldsAggShow: [
       { f:"aggregate", d:"Aggregate" },
       { f:"storage-type", d:"Storage Type" },
       { f:"chksumstyle", d:"Checksum Style" },
@@ -722,7 +734,7 @@
       { f:"resync-priority", d:"Resynchronization Priority" },
       { f:"data-compaction-space-saved", d:"Space Saved by Data Compaction" },
       { f:"data-compaction-space-saved-percent", d:"Percentage Saved by Data Compaction" },
-      { f:"data-compacted-count", d:"Amount of Compacted Data" },
+      { f:"data-compacted-count", d:"Amount of compacted data" },
       { f:"creation-timestamp", d:"Timestamp of Aggregate Creation" },
       { f:"single-instance-data-logging", d:"Enable SIDL" },
       { f:"composite", d:"Composite" },
@@ -730,12 +742,73 @@
       { f:"composite-capacity-tier-used", d:"Capacity Tier Used Size" },
       { f:"sis-space-saved", d:"Space Saved by Storage Efficiency" },
       { f:"sis-space-saved-percent", d:"Percentage of Space Saved by Storage Efficiency" },
-      { f:"sis-shared-count", d:"Amount of Shared Bytes Count by Storage Efficiency" },
+      { f:"sis-shared-count", d:"Amount of Shared bytes count by Storage Efficiency" },
       { f:"is-inactive-data-reporting-enabled", d:"Inactive Data Reporting Enabled" },
       { f:"inactive-data-reporting-start-timestamp", d:"Timestamp when Inactive Data Reporting was Enabled" },
-      { f:"encrypt-with-aggr-key", d:"Enable Aggregate Level Encryption" },
-      { f:"drive-protection-enabled", d:"Aggregate Uses Data Protected SEDs" },
-      { f:"azcs-read-optimization", d:"AZCS Read Optimization" }
+      { f:"encrypt-with-aggr-key", d:"Enable Aggregate level Encryption" },
+      { f:"drive-protection-enabled", d:"Aggregate uses data protected SEDs" },
+      { f:"azcs-read-optimization", d:"azcs read optimization" }
+    ],
+    fieldsAggSpace: [
+      { f:"aggregate-name", d:"Aggregate" },
+      { f:"bin-num", d:"Bin Number" },
+      { f:"tier-name", d:"Tier Name For Show Command" },
+      { f:"aggregate", d:"Aggregate Display Name" },
+      { f:"aggregate-uuid", d:"Uuid of the Aggregate" },
+      { f:"volume-footprints", d:"Volume Footprints" },
+      { f:"volume-footprints-percent", d:"Volume Footprints Percent" },
+      { f:"snap-size-total", d:"Total Space for Snapshot Copies in Bytes" },
+      { f:"percent-snapshot-space", d:"Space Reserved for Snapshot Copies" },
+      { f:"aggregate-metadata", d:"Aggregate Metadata" },
+      { f:"aggregate-metadata-percent", d:"Aggregate Metadata Percent" },
+      { f:"used-including-snapshot-reserve", d:"Total Used" },
+      { f:"used-including-snapshot-reserve-percent", d:"Total Used Percent" },
+      { f:"aggregate-size", d:"Size" },
+      { f:"snapshot-reserve-unusable", d:"Snapshot Reserve Unusable" },
+      { f:"snapshot-reserve-unusable-percent", d:"Snapshot Reserve Unusable Percent" },
+      { f:"physical-used", d:"Total Physical Used Size" },
+      { f:"physical-used-percent", d:"Physical Used Percentage" },
+      { f:"performance-tier-inactive-user-data", d:"Performance Tier Inactive User Data" },
+      { f:"performance-tier-inactive-user-data-percent", d:"Performance Tier Inactive User Data Percent" },
+      { f:"cross-volume-dedupe-metadata", d:"Aggregate Dedupe Metadata" },
+      { f:"cross-volume-dedupe-metadata-percent", d:"Aggregate Dedupe Metadata Percent" },
+      { f:"cross-volume-dedupe-temp-metadata", d:"Aggregate Dedupe Temporary Metadata" },
+      { f:"cross-volume-dedupe-temp-metadata-percent", d:"Aggregate Dedupe Temporary Metadata Percent" },
+      { f:"total-provisioned-space", d:"Total Space Provisioned inside Aggregate" },
+      { f:"total-provisioned-space-percent", d:"Percentage Space Provisioned inside Aggregate" },
+      { f:"object-store-physical-used", d:"Total Physical Used Size" },
+      { f:"object-store-physical-used-percent", d:"Physical Used Percentage" },
+      { f:"object-store-referenced-capacity", d:"Total Object Store Logical Referenced Capacity" },
+      { f:"object-store-referenced-capacity-percent", d:"Object Store Logical Referenced Capacity Percentage" },
+      { f:"object-store-metadata", d:"(DEPRECATED)-Object Store Metadata" },
+      { f:"object-store-metadata-percent", d:"(DEPRECATED)-Object Store Metadata Percent" },
+      { f:"object-store-unreclaimed-space", d:"(DEPRECATED)-Total Unreclaimed Space" },
+      { f:"object-store-unreclaimed-space-percent", d:"(DEPRECATED)-Object Store Unreclaimed Space Percentage" },
+      { f:"object-store-size", d:"Object Store Size" },
+      { f:"object-store-sis-space-saved", d:"Object Store Space Saved by Storage Efficiency" },
+      { f:"object-store-sis-space-saved-percent", d:"Object Store Space Saved by Storage Efficiency Percentage" },
+      { f:"object-store-logical-used", d:"Total Logical Used Size" },
+      { f:"object-store-logical-used-percent", d:"Logical Used Percentage" },
+      { f:"object-store-logical-unreferenced-capacity", d:"Logical Unreferenced Capacity" },
+      { f:"object-store-logical-unreferenced-capacity-percent", d:"Logical Unreferenced Percentage" }
+    ],
+    fieldsAggEfficiency: [
+      { f:"aggregate", d:"Name of the Aggregate" },
+      { f:"node", d:"Node where Aggregate Resides" },
+      { f:"total-storage-efficiency-ratio", d:"Total Storage Efficiency Ratio" },
+      { f:"total-data-reduction-efficiency-ratio-wo-snapshots", d:"Total Data Reduction Efficiency Ratio Without Snapshots" },
+      { f:"total-data-reduction-efficiency-ratio-wo-snapshots-flexclones", d:"Total Data Reduction Efficiency Ratio without snapshots and flexclones" },
+      { f:"volume-logical-used", d:"Logical Space Used for All Volumes" },
+      { f:"volume-physical-used", d:"Physical Space Used for All Volumes" },
+      { f:"volume-efficiency-saved-ratio", d:"Volume Deduplication Savings ratio" },
+      { f:"volume-compression-saved-ratio", d:"Volume Compression Savings ratio" },
+      { f:"volume-vbn-zero-saved", d:"Space Saved by Inline Zero Pattern Detection" },
+      { f:"volume-data-reduction-storage-efficiency-ratio", d:"Volume Data Reduction SE Ratio" },
+      { f:"snapshot-volume-data-reduction-storage-efficiency-ratio", d:"Snapshot Volume Data Reduction Ratio" },
+      { f:"flexclone-volume-data-reduction-storage-efficiency-ratio", d:"FlexClone Volume Data Reduction Ratio" },
+      { f:"snapshot-flexclone-volume-data-reduction-storage-efficiency-ratio", d:"Snapshot And FlexClone Volume Data Reduction SE Ratio" },
+      { f:"number-of-offline-volumes", d:"Number of Volumes Offline" },
+      { f:"number-of-sis-disabled-volumes", d:"Number of SIS Disabled Volumes" }
     ],
     fieldsQtree: [
       { f:"vserver", d:"Vserver Name" },
@@ -1211,16 +1284,13 @@
 
     lines.push(sectionHeader(prefix, "AGGREGATES / LOCAL TIERS"));
     {
-      const fields = el("fieldsAgg").value.trim();
-      if (fields) {
-        lines.push(`storage aggregate show -fields ${fields}`);
-        lines.push(`storage aggregate show-space -fields ${fields}`);
-        lines.push(`storage aggregate show-efficiency -fields ${fields}`);
-      } else {
-        lines.push(`storage aggregate show`);
-        lines.push(`storage aggregate show-space`);
-        lines.push(`storage aggregate show-efficiency`);
-      }
+      const fieldsShow = el("fieldsAggShow").value.trim();
+      const fieldsSpace = el("fieldsAggSpace").value.trim();
+      const fieldsEfficiency = el("fieldsAggEfficiency").value.trim();
+      
+      lines.push(fieldsShow ? `storage aggregate show -fields ${fieldsShow}` : `storage aggregate show`);
+      lines.push(fieldsSpace ? `storage aggregate show-space -fields ${fieldsSpace}` : `storage aggregate show-space`);
+      lines.push(fieldsEfficiency ? `storage aggregate show-efficiency -fields ${fieldsEfficiency}` : `storage aggregate show-efficiency`);
     }
     lines.push("");
 
@@ -1760,13 +1830,24 @@
      ========================= */
 
   const DEFAULT_SELECTIONS = {
-    fieldsAgg: [
+    fieldsAggShow: [
       "aggregate","node","state","size","availsize","usedsize","percent-used",
       "storage-type","raidtype","raidstatus","diskcount","volcount",
       "physical-used","physical-used-percent",
       "sis-space-saved","sis-space-saved-percent",
       "data-compaction-space-saved","data-compaction-space-saved-percent",
       "snaplock-type","is-nve-capable","encrypt-with-aggr-key"
+    ],
+    fieldsAggSpace: [
+      "aggregate-name","aggregate","volume-footprints","volume-footprints-percent",
+      "aggregate-metadata","aggregate-metadata-percent",
+      "physical-used","physical-used-percent",
+      "used-including-snapshot-reserve","used-including-snapshot-reserve-percent"
+    ],
+    fieldsAggEfficiency: [
+      "aggregate","node","total-storage-efficiency-ratio",
+      "total-data-reduction-efficiency-ratio-wo-snapshots",
+      "volume-logical-used","volume-physical-used"
     ],
     fieldsVol: [
       "vserver","volume","state","size","used","available","percent-used","aggregate","node",
@@ -1838,7 +1919,9 @@
   async function loadSelectionsAndInitPickers() {
     for (const k of Object.keys(DEFAULT_SELECTIONS)) setInputFields(k, DEFAULT_SELECTIONS[k]);
 
-    PICKERS.fieldsAgg = renderPicker("fieldsAgg", "storage aggregate show");
+    PICKERS.fieldsAggShow = renderPicker("fieldsAggShow", "storage aggregate show");
+    PICKERS.fieldsAggSpace = renderPicker("fieldsAggSpace", "storage aggregate show-space");
+    PICKERS.fieldsAggEfficiency = renderPicker("fieldsAggEfficiency", "storage aggregate show-efficiency");
     PICKERS.fieldsVol = renderPicker("fieldsVol", "volume show");
     PICKERS.fieldsVolSpace = renderPicker("fieldsVolSpace", "volume show-space");
     PICKERS.fieldsSnaps = renderPicker("fieldsSnaps", "volume snapshot show");
@@ -1900,7 +1983,7 @@
      - Now includes the pasted CSV/text boxes + chart UI selections
      ========================= */
 
-  const CONFIG_KEYS = ["fieldsAgg","fieldsVol","fieldsVolSpace","fieldsSnaps","fieldsEff","fieldsQtree","fieldsLun","fieldsCifs"];
+  const CONFIG_KEYS = ["fieldsAggShow","fieldsAggSpace","fieldsAggEfficiency","fieldsVol","fieldsVolSpace","fieldsSnaps","fieldsEff","fieldsQtree","fieldsLun","fieldsCifs"];
   const DATA_KEYS = ["pasteAgg","pasteVol","pasteVolSpace","pasteSnaps","pasteEff","pasteQtree","pasteLun","pasteCifs"];
 
   function collectCurrentConfig() {
