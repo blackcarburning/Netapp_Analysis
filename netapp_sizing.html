@@ -361,7 +361,9 @@
         <div>
           <label for="importTarget">Target</label>
           <select id="importTarget">
-            <option value="pasteAgg">Aggregates</option>
+            <option value="pasteAggShow">Aggregates (show)</option>
+            <option value="pasteAggSpace">Aggregates (show-space)</option>
+            <option value="pasteAggEfficiency">Aggregates (show-efficiency)</option>
             <option value="pasteVol">Volumes</option>
             <option value="pasteVolSpace">Vol_Show_Space</option>
             <option value="pasteSnaps">Snapshots</option>
@@ -402,7 +404,9 @@
           <label for="chartSource">Data source</label>
           <select id="chartSource">
             <option value="pasteVol">Volumes</option>
-            <option value="pasteAgg">Aggregates</option>
+            <option value="pasteAggShow">Aggregates (show)</option>
+            <option value="pasteAggSpace">Aggregates (show-space)</option>
+            <option value="pasteAggEfficiency">Aggregates (show-efficiency)</option>
             <option value="pasteVolSpace">Vol_Show_Space</option>
             <option value="pasteLun">LUNs</option>
           </select>
@@ -456,12 +460,30 @@
     </div>
 
     <!-- PASTE SECTIONS -->
-    <div class="section" data-key="aggregates">
-      <h3>Aggregates</h3>
-      <div class="meta">Paste output of: <code class="kbd">storage aggregate show</code> / <code class="kbd">show-space</code> / <code class="kbd">show-efficiency</code> (you can paste one or all)</div>
-      <textarea class="paste" id="pasteAgg" spellcheck="false" placeholder="Paste aggregate output here…"></textarea>
+    <div class="section" data-key="aggregates-show">
+      <h3>Aggregates (show)</h3>
+      <div class="meta">Paste output of: <code class="kbd">storage aggregate show -fields …</code></div>
+      <textarea class="paste" id="pasteAggShow" spellcheck="false" placeholder="Paste storage aggregate show output here…"></textarea>
       <div class="btns">
-        <button class="btnExportOne" data-target="pasteAgg" data-sheet="Aggregates">Export Aggregates.xlsx</button>
+        <button class="btnExportOne" data-target="pasteAggShow" data-sheet="Aggregates_Show">Export Aggregates_Show.xlsx</button>
+      </div>
+    </div>
+
+    <div class="section" data-key="aggregates-space">
+      <h3>Aggregates (show-space)</h3>
+      <div class="meta">Paste output of: <code class="kbd">storage aggregate show-space -fields …</code></div>
+      <textarea class="paste" id="pasteAggSpace" spellcheck="false" placeholder="Paste storage aggregate show-space output here…"></textarea>
+      <div class="btns">
+        <button class="btnExportOne" data-target="pasteAggSpace" data-sheet="Aggregates_Space">Export Aggregates_Space.xlsx</button>
+      </div>
+    </div>
+
+    <div class="section" data-key="aggregates-efficiency">
+      <h3>Aggregates (show-efficiency)</h3>
+      <div class="meta">Paste output of: <code class="kbd">storage aggregate show-efficiency -fields …</code></div>
+      <textarea class="paste" id="pasteAggEfficiency" spellcheck="false" placeholder="Paste storage aggregate show-efficiency output here…"></textarea>
+      <div class="btns">
+        <button class="btnExportOne" data-target="pasteAggEfficiency" data-sheet="Aggregates_Efficiency">Export Aggregates_Efficiency.xlsx</button>
       </div>
     </div>
 
@@ -1604,7 +1626,9 @@
     const delimiter = normDelimiter(el("delimiter").value);
 
     const sources = [
-      { id: "pasteAgg",      sheet: "Aggregates" },
+      { id: "pasteAggShow",      sheet: "Aggregates_Show" },
+      { id: "pasteAggSpace",     sheet: "Aggregates_Space" },
+      { id: "pasteAggEfficiency", sheet: "Aggregates_Efficiency" },
       { id: "pasteVol",      sheet: "Volumes" },
       { id: "pasteVolSpace", sheet: "Vol_Show_Space" },
       { id: "pasteSnaps",    sheet: "Snapshots" },
@@ -1960,7 +1984,7 @@
   }
 
   function clearAllPastes() {
-    ["pasteAgg","pasteVol","pasteVolSpace","pasteSnaps","pasteEff","pasteQtree","pasteLun","pasteCifs"]
+    ["pasteAggShow","pasteAggSpace","pasteAggEfficiency","pasteVol","pasteVolSpace","pasteSnaps","pasteEff","pasteQtree","pasteLun","pasteCifs"]
       .forEach(id => el(id).value = "");
     refreshChartColumns();
   }
@@ -1984,7 +2008,7 @@
      ========================= */
 
   const CONFIG_KEYS = ["fieldsAggShow","fieldsAggSpace","fieldsAggEfficiency","fieldsVol","fieldsVolSpace","fieldsSnaps","fieldsEff","fieldsQtree","fieldsLun","fieldsCifs"];
-  const DATA_KEYS = ["pasteAgg","pasteVol","pasteVolSpace","pasteSnaps","pasteEff","pasteQtree","pasteLun","pasteCifs"];
+  const DATA_KEYS = ["pasteAggShow","pasteAggSpace","pasteAggEfficiency","pasteVol","pasteVolSpace","pasteSnaps","pasteEff","pasteQtree","pasteLun","pasteCifs"];
 
   function collectCurrentConfig() {
     const fields = {};

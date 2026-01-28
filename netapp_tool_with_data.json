@@ -172,7 +172,9 @@
     ]
   },
   "data": {
-    "pasteAgg": "",
+    "pasteAggShow": "",
+    "pasteAggSpace": "",
+    "pasteAggEfficiency": "",
     "pasteVol": "",
     "pasteVolSpace": "",
     "pasteSnaps": "",
