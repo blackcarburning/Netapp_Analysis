@@ -389,6 +389,34 @@
       <button id="btnClearAll" class="secondary">Clear all pasted outputs</button>
     </div>
 
+    <div class="row" style="margin-top: 10px;">
+      <div>
+        <label for="xlsxUnitFrom">Convert from unit (XLSX)</label>
+        <select id="xlsxUnitFrom">
+          <option value="none">None (no conversion)</option>
+          <option value="raw">Raw (bytes)</option>
+          <option value="KB">KB</option>
+          <option value="MB">MB</option>
+          <option value="GB">GB</option>
+          <option value="TB">TB</option>
+          <option value="PB">PB</option>
+        </select>
+      </div>
+      <div>
+        <label for="xlsxUnitTo">Convert to unit (XLSX)</label>
+        <select id="xlsxUnitTo">
+          <option value="none">None (no conversion)</option>
+          <option value="raw">Raw (bytes)</option>
+          <option value="KB">KB</option>
+          <option value="MB">MB</option>
+          <option value="GB">GB</option>
+          <option value="TB">TB</option>
+          <option value="PB">PB</option>
+        </select>
+      </div>
+    </div>
+    <div class="tiny" style="margin-top:4px;">Conversion is applied to size-related columns. The from-unit is auto-detected from the data (e.g., GB, TB).</div>
+
     <div class="hint">
       Paste the ONTAP output for each command (including the header row). Lines starting with <code class="kbd">#</code> are ignored.
       If you copy extra blank lines, that’s fine.
@@ -449,9 +477,40 @@
         </div>
       </div>
 
+      <div style="height:10px"></div>
+
+      <div class="row">
+        <div>
+          <label for="chartUnitFrom">Convert from unit</label>
+          <select id="chartUnitFrom">
+            <option value="none">None (no conversion)</option>
+            <option value="raw">Raw (bytes)</option>
+            <option value="KB">KB</option>
+            <option value="MB">MB</option>
+            <option value="GB">GB</option>
+            <option value="TB">TB</option>
+            <option value="PB">PB</option>
+          </select>
+        </div>
+        <div>
+          <label for="chartUnitTo">Convert to unit</label>
+          <select id="chartUnitTo">
+            <option value="none">None (no conversion)</option>
+            <option value="raw">Raw (bytes)</option>
+            <option value="KB">KB</option>
+            <option value="MB">MB</option>
+            <option value="GB">GB</option>
+            <option value="TB">TB</option>
+            <option value="PB">PB</option>
+          </select>
+        </div>
+      </div>
+      <div class="tiny" style="margin-top:4px;">Note: Data with unit suffixes (e.g., "10GB") is automatically converted to bytes. Use "Raw (bytes)" as the from-unit for such data.</div>
+
       <div class="btns">
         <button id="btnBuildChart">Build chart</button>
         <button id="btnClearChart" class="secondary">Clear chart</button>
+        <button id="btnExportChartPng" class="secondary">Export chart to PNG</button>
         <span class="tiny">Tip: try <code class="kbd">percent-used</code>, <code class="kbd">used</code>, <code class="kbd">logical-used</code>, or <code class="kbd">size-used</code> (LUNs).</span>
       </div>
 
@@ -1471,7 +1530,7 @@
     return `${base} (${tag})`;
   }
 
-  function transformAoaForXlsx(aoa) {
+  function transformAoaForXlsx(aoa, fromUnit = "none", toUnit = "none") {
     // returns { aoa, meta:{ sizeCols:[{idx, unitTag}]} }
     if (!Array.isArray(aoa) || aoa.length === 0) return { aoa, meta: { sizeCols: [] } };
 
@@ -1539,7 +1598,9 @@
 
     // update headers with unit tags
     for (const sc of sizeCols) {
-      out[0][sc.idx] = headerWithUnit(headers[sc.idx], sc.unitTag);
+      // If user requested conversion, use that unit in the header
+      const finalUnitTag = (fromUnit !== "none" && toUnit !== "none") ? toUnit : sc.unitTag;
+      out[0][sc.idx] = headerWithUnit(headers[sc.idx], finalUnitTag);
     }
 
     // convert values
@@ -1552,23 +1613,42 @@
           continue;
         }
 
+        let finalValue;
+
         if (sc.mode === "single") {
           // If value has a different unit (unexpected), convert to the header unit to keep column consistent
           if (p.unit && p.unit !== sc.singleUnit) {
             const bytes = p.num * unitToBytesMult(p.unit);
             const numInUnit = bytes / unitToBytesMult(sc.singleUnit);
-            out[r][sc.idx] = numInUnit;
+            finalValue = numInUnit;
           } else {
-            out[r][sc.idx] = p.num;
+            finalValue = p.num;
           }
         } else if (sc.mode === "bytes") {
           const unit = p.unit || "raw";
           const bytes = p.num * (p.unit ? unitToBytesMult(p.unit) : 1);
-          out[r][sc.idx] = bytes;
+          finalValue = bytes;
         } else {
           // raw: strip any unit if present, otherwise keep number
-          out[r][sc.idx] = p.num;
+          finalValue = p.num;
         }
+
+        // Apply user-requested unit conversion
+        if (fromUnit !== "none" && toUnit !== "none") {
+          // Determine the source unit for conversion
+          let sourceUnit;
+          if (sc.mode === "single" && sc.singleUnit) {
+            sourceUnit = sc.singleUnit;
+          } else if (sc.mode === "bytes") {
+            sourceUnit = "raw";
+          } else {
+            sourceUnit = "raw";
+          }
+          // Apply conversion
+          finalValue = convertUnit(finalValue, sourceUnit, toUnit);
+        }
+
+        out[r][sc.idx] = finalValue;
       }
     }
 
@@ -1609,7 +1689,11 @@
       return;
     }
 
-    const { aoa } = transformAoaForXlsx(aoaRaw);
+    // Get unit conversion settings
+    const fromUnit = el("xlsxUnitFrom").value;
+    const toUnit = el("xlsxUnitTo").value;
+
+    const { aoa } = transformAoaForXlsx(aoaRaw, fromUnit, toUnit);
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -1624,6 +1708,10 @@
       return;
     }
     const delimiter = normDelimiter(el("delimiter").value);
+
+    // Get unit conversion settings
+    const fromUnit = el("xlsxUnitFrom").value;
+    const toUnit = el("xlsxUnitTo").value;
 
     const sources = [
       { id: "pasteAggShow",      sheet: "Aggregates_Show" },
@@ -1646,7 +1734,7 @@
       const aoaRaw = parseDelimited(txt, delimiter);
       if (!aoaRaw.length) continue;
 
-      const { aoa } = transformAoaForXlsx(aoaRaw);
+      const { aoa } = transformAoaForXlsx(aoaRaw, fromUnit, toUnit);
 
       const ws = XLSX.utils.aoa_to_sheet(aoa);
       XLSX.utils.book_append_sheet(wb, ws, toSafeSheetName(s.sheet));
@@ -1708,6 +1796,41 @@
 
     const n = parseFloat(s);
     return Number.isFinite(n) ? n : NaN;
+  }
+
+  // Unit multipliers relative to bytes (raw) for conversion
+  const UNIT_MULTIPLIERS = {
+    "raw": 1,
+    "KB": 1024,
+    "MB": 1024 * 1024,
+    "GB": 1024 * 1024 * 1024,
+    "TB": 1024 * 1024 * 1024 * 1024,
+    "PB": 1024 * 1024 * 1024 * 1024 * 1024
+  };
+
+  /**
+   * Convert a numeric value from one storage unit to another
+   * @param {number} value - The numeric value to convert
+   * @param {string} fromUnit - Source unit: "none", "raw", "KB", "MB", "GB", "TB", "PB"
+   * @param {string} toUnit - Target unit: "none", "raw", "KB", "MB", "GB", "TB", "PB"
+   * @returns {number} The converted value
+   */
+  function convertUnit(value, fromUnit, toUnit) {
+    if (fromUnit === "none" || toUnit === "none" || fromUnit === toUnit) {
+      return value;
+    }
+    
+    // Validate units
+    if (!UNIT_MULTIPLIERS[fromUnit] || !UNIT_MULTIPLIERS[toUnit]) {
+      console.warn(`Invalid unit conversion: ${fromUnit} to ${toUnit}`);
+      return value;
+    }
+    
+    // Convert to bytes first, then to target unit
+    const bytesValue = value * UNIT_MULTIPLIERS[fromUnit];
+    const convertedValue = bytesValue / UNIT_MULTIPLIERS[toUnit];
+    
+    return convertedValue;
   }
 
   function refreshChartColumns() {
@@ -1794,11 +1917,21 @@
       return;
     }
 
+    // Get unit conversion settings
+    // Note: parseOntapNumber converts all values to bytes, so fromUnit should be "raw" or match the raw data format
+    const fromUnit = el("chartUnitFrom").value;
+    const toUnit = el("chartUnitTo").value;
+
     const rows = aoa.slice(1).map(r => ({
       label: (r[li] ?? "").trim(),
       value: parseOntapNumber(r[vi])
     }))
-    .filter(x => x.label.length > 0 && Number.isFinite(x.value));
+    .filter(x => x.label.length > 0 && Number.isFinite(x.value))
+    .map(x => ({
+      label: x.label,
+      // parseOntapNumber returns bytes, so we convert from raw/bytes or the specified fromUnit
+      value: convertUnit(x.value, fromUnit === "none" ? "none" : (fromUnit || "raw"), toUnit)
+    }));
 
     if (!rows.length) {
       status.textContent = "No numeric values found in the selected value column.";
@@ -1822,15 +1955,31 @@
       chartInstance = null;
     }
 
+    // Determine label for chart
+    const unitLabel = toUnit !== "none" ? ` (${toUnit})` : "";
+    const chartLabel = `${valueCol} (Top ${topN})${unitLabel}`;
+
     const ctx = el("chartCanvas").getContext("2d");
     chartInstance = new Chart(ctx, {
       type: "bar",
-      data: { labels, datasets: [{ label: `${valueCol} (Top ${topN})`, data }] },
+      data: { labels, datasets: [{ label: chartLabel, data }] },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         indexAxis,
-        plugins: { legend: { display: true }, tooltip: { enabled: true } },
+        plugins: {
+          legend: {
+            display: true,
+            position: "top",
+            labels: {
+              color: "#e9eefc",
+              font: {
+                size: 12
+              }
+            }
+          },
+          tooltip: { enabled: true }
+        },
         scales: {
           x: { ticks: { color: "#a9b4d6" }, grid: { color: "rgba(35,48,90,0.35)" } },
           y: { ticks: { color: "#a9b4d6" }, grid: { color: "rgba(35,48,90,0.35)" } }
@@ -1847,6 +1996,55 @@
       chartInstance = null;
     }
     el("chartStatus").textContent = "";
+  }
+
+  /**
+   * Export the current chart as a high-resolution PNG image
+   * Creates a 2x scaled version with white background for better quality and printing
+   * Minimum width of 1200px ensures readability
+   */
+  function exportChartToPng() {
+    const canvas = el("chartCanvas");
+    if (!chartInstance) {
+      alert("No chart to export. Build a chart first.");
+      return;
+    }
+    
+    try {
+      // Create a larger canvas for better resolution
+      const scaleFactor = 2; // 2x resolution for crisp export
+      const exportCanvas = document.createElement("canvas");
+      const ctx = exportCanvas.getContext("2d");
+      
+      if (!ctx) {
+        throw new Error("Failed to get canvas context");
+      }
+      
+      // Ensure minimum width for readability
+      const minWidth = 1200;
+      const baseWidth = Math.max(canvas.width, minWidth);
+      const baseHeight = canvas.height;
+      
+      exportCanvas.width = baseWidth * scaleFactor;
+      exportCanvas.height = baseHeight * scaleFactor;
+      
+      // Fill with white background
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+      
+      // Draw the chart at higher resolution
+      ctx.scale(scaleFactor, scaleFactor);
+      ctx.drawImage(canvas, 0, 0, baseWidth, baseHeight);
+      
+      // Create download link
+      const link = document.createElement("a");
+      link.download = "chart_export.png";
+      link.href = exportCanvas.toDataURL("image/png", 1.0);
+      link.click();
+    } catch (error) {
+      alert(`Failed to export chart: ${error.message}`);
+      console.error("Chart export error:", error);
+    }
   }
 
   /* =========================
@@ -2225,6 +2423,7 @@
 
   el("btnBuildChart").addEventListener("click", buildChart);
   el("btnClearChart").addEventListener("click", clearChart);
+  el("btnExportChartPng").addEventListener("click", exportChartToPng);
 
   // Config export/import buttons
   el("btnExportConfig").addEventListener("click", exportFieldConfig);
