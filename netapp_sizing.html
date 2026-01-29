@@ -386,6 +386,7 @@
 
     <div class="btns">
       <button id="btnExportAll">Export ALL to one XLSX (multi-sheet)</button>
+      <button id="btnGenerateReport" class="secondary">Generate PDF Report</button>
       <button id="btnClearAll" class="secondary">Clear all pasted outputs</button>
     </div>
 
@@ -420,6 +421,12 @@
     <div class="hint">
       Paste the ONTAP output for each command (including the header row). Lines starting with <code class="kbd">#</code> are ignored.
       If you copy extra blank lines, that’s fine.
+      <br><br>
+      For PDF reports, download <code class="kbd">jspdf.umd.min.js</code> from 
+      <a href="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" target="_blank">cdnjs</a>
+      and optionally <code class="kbd">jspdf.plugin.autotable.min.js</code> from
+      <a href="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js" target="_blank">cdnjs</a>.
+      Place them in the same folder as this HTML file.
     </div>
 
     <!-- CHARTS -->
@@ -614,9 +621,13 @@
 <!-- OFFLINE libs (place these files next to this HTML):
      - xlsx.full.min.js  (SheetJS)
      - chart.umd.min.js  (Chart.js)
+     - jspdf.umd.min.js  (jsPDF)
+     - jspdf.plugin.autotable.min.js  (jsPDF-AutoTable)
 -->
 <script src="./xlsx.full.min.js"></script>
 <script src="./chart.umd.min.js"></script>
+<script src="./jspdf.umd.min.js"></script>
+<script src="./jspdf.plugin.autotable.min.js"></script>
 
 <script>
   const el = (id) => document.getElementById(id);
@@ -742,6 +753,7 @@
     const missing = [];
     if (typeof XLSX === "undefined") missing.push("xlsx.full.min.js (SheetJS)");
     if (typeof Chart === "undefined") missing.push("chart.umd.min.js (Chart.js)");
+    if (typeof jspdf === "undefined" && typeof jsPDF === "undefined") missing.push("jspdf.umd.min.js (jsPDF)");
 
     const warn = el("offlineWarn");
     if (missing.length) {
@@ -1750,6 +1762,299 @@
     XLSX.writeFile(wb, `ontap_export_${stamp}.xlsx`);
   }
 
+  function generatePDFReport() {
+    // Check if jsPDF is available
+    const jsPDFLib = window.jspdf?.jsPDF || window.jsPDF;
+    if (!jsPDFLib) {
+      alert("jsPDF library not found. Please download jspdf.umd.min.js and place it in the same folder as this HTML file.\n\nDownload from: https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+      return;
+    }
+    
+    const doc = new jsPDFLib();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    let yPos = 20;
+    
+    // Helper function to add section header
+    function addSectionHeader(title) {
+      if (yPos > 260) {
+        doc.addPage();
+        yPos = 20;
+      }
+      doc.setFontSize(14);
+      doc.setFont(undefined, 'bold');
+      doc.text(title, margin, yPos);
+      yPos += 8;
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(10);
+    }
+    
+    // Helper function to add key-value line
+    function addLine(label, value) {
+      if (yPos > 275) {
+        doc.addPage();
+        yPos = 20;
+      }
+      doc.text(`${label}: ${value}`, margin, yPos);
+      yPos += 6;
+    }
+    
+    // Helper to parse pasted data
+    function parseData(textareaId) {
+      const textarea = el(textareaId);
+      if (!textarea) return { headers: [], rows: [] };
+      
+      const text = textarea.value.trim();
+      if (!text) return { headers: [], rows: [] };
+      
+      const delimiter = normDelimiter(el("delimiter").value);
+      const lines = text.split(/\r?\n/).filter(line => {
+        const trimmed = line.trim();
+        return trimmed && !trimmed.startsWith("#");
+      });
+      
+      if (lines.length === 0) return { headers: [], rows: [] };
+      
+      const headers = lines[0].split(delimiter).map(h => h.trim());
+      const rows = lines.slice(1).map(line => line.split(delimiter).map(c => c.trim()));
+      
+      return { headers, rows };
+    }
+    
+    // Helper to find column index
+    function findCol(headers, ...names) {
+      for (const name of names) {
+        const idx = headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
+        if (idx !== -1) return idx;
+      }
+      return -1;
+    }
+    
+    // Helper to sum numeric column
+    function sumColumn(rows, colIdx) {
+      if (colIdx === -1) return 0;
+      return rows.reduce((sum, row) => {
+        const val = parseFloat(row[colIdx]);
+        return sum + (isNaN(val) ? 0 : val);
+      }, 0);
+    }
+    
+    // Helper to format bytes
+    function formatBytes(bytes, decimals = 2) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(decimals)) + ' ' + sizes[i];
+    }
+    
+    // Title
+    doc.setFontSize(18);
+    doc.setFont(undefined, 'bold');
+    doc.text("NetApp Storage Configuration Report", margin, yPos);
+    yPos += 8;
+    
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text(`Generated: ${new Date().toLocaleString()}`, margin, yPos);
+    yPos += 12;
+    
+    // === AGGREGATES SUMMARY ===
+    addSectionHeader("Aggregates Summary");
+    
+    const aggShowData = parseData("pasteAggShow");
+    const aggSpaceData = parseData("pasteAggSpace");
+    const aggEffData = parseData("pasteAggEfficiency");
+    
+    // Count aggregates
+    const aggCount = aggShowData.rows.length || aggSpaceData.rows.length || aggEffData.rows.length;
+    addLine("Total Aggregates", aggCount || "No data");
+    
+    // Aggregate sizes from show-space
+    if (aggSpaceData.rows.length > 0) {
+      const sizeCol = findCol(aggSpaceData.headers, "aggregate-size", "size");
+      const usedCol = findCol(aggSpaceData.headers, "used-including-snapshot-reserve", "total-used", "used");
+      const physUsedCol = findCol(aggSpaceData.headers, "physical-used");
+      
+      if (sizeCol !== -1) {
+        const totalSize = sumColumn(aggSpaceData.rows, sizeCol);
+        addLine("Total Aggregate Capacity", formatBytes(totalSize));
+      }
+      if (usedCol !== -1) {
+        const totalUsed = sumColumn(aggSpaceData.rows, usedCol);
+        addLine("Total Used Space", formatBytes(totalUsed));
+      }
+      if (physUsedCol !== -1) {
+        const physUsed = sumColumn(aggSpaceData.rows, physUsedCol);
+        addLine("Total Physical Used", formatBytes(physUsed));
+      }
+    }
+    
+    // Efficiency ratios
+    if (aggEffData.rows.length > 0) {
+      const ratioCol = findCol(aggEffData.headers, "total-storage-efficiency-ratio");
+      if (ratioCol !== -1 && aggEffData.rows[0][ratioCol]) {
+        addLine("Storage Efficiency Ratio (first aggr)", aggEffData.rows[0][ratioCol]);
+      }
+    }
+    
+    yPos += 6;
+    
+    // === VOLUMES SUMMARY ===
+    addSectionHeader("Volumes Summary");
+    
+    const volData = parseData("pasteVol");
+    addLine("Total Volumes", volData.rows.length || "No data");
+    
+    if (volData.rows.length > 0) {
+      const sizeCol = findCol(volData.headers, "size");
+      const usedCol = findCol(volData.headers, "used");
+      const availCol = findCol(volData.headers, "available");
+      const pctUsedCol = findCol(volData.headers, "percent-used");
+      
+      if (sizeCol !== -1) {
+        const totalSize = sumColumn(volData.rows, sizeCol);
+        addLine("Total Volume Capacity", formatBytes(totalSize));
+      }
+      if (usedCol !== -1) {
+        const totalUsed = sumColumn(volData.rows, usedCol);
+        addLine("Total Used Space", formatBytes(totalUsed));
+      }
+      if (availCol !== -1) {
+        const totalAvail = sumColumn(volData.rows, availCol);
+        addLine("Total Available Space", formatBytes(totalAvail));
+      }
+      
+      // Count by type if available
+      const typeCol = findCol(volData.headers, "type", "volume-style");
+      if (typeCol !== -1) {
+        const types = {};
+        volData.rows.forEach(row => {
+          const t = row[typeCol] || "unknown";
+          types[t] = (types[t] || 0) + 1;
+        });
+        Object.entries(types).forEach(([type, count]) => {
+          addLine(`  - ${type} volumes`, count);
+        });
+      }
+    }
+    
+    yPos += 6;
+    
+    // === VOLUME SPACE SUMMARY ===
+    const volSpaceData = parseData("pasteVolSpace");
+    if (volSpaceData.rows.length > 0) {
+      addSectionHeader("Volume Space Details");
+      addLine("Volumes with space data", volSpaceData.rows.length);
+      
+      const logUsedCol = findCol(volSpaceData.headers, "logical-used");
+      const physUsedCol = findCol(volSpaceData.headers, "physical-used");
+      
+      if (logUsedCol !== -1) {
+        const totalLogical = sumColumn(volSpaceData.rows, logUsedCol);
+        addLine("Total Logical Used", formatBytes(totalLogical));
+      }
+      if (physUsedCol !== -1) {
+        const totalPhysical = sumColumn(volSpaceData.rows, physUsedCol);
+        addLine("Total Physical Used", formatBytes(totalPhysical));
+      }
+      yPos += 6;
+    }
+    
+    // === SNAPSHOTS SUMMARY ===
+    const snapData = parseData("pasteSnaps");
+    if (snapData.rows.length > 0) {
+      addSectionHeader("Snapshots Summary");
+      addLine("Total Snapshots", snapData.rows.length);
+      
+      const sizeCol = findCol(snapData.headers, "size");
+      if (sizeCol !== -1) {
+        const totalSize = sumColumn(snapData.rows, sizeCol);
+        addLine("Total Snapshot Size", formatBytes(totalSize));
+      }
+      yPos += 6;
+    }
+    
+    // === EFFICIENCY SUMMARY ===
+    const effData = parseData("pasteEff");
+    if (effData.rows.length > 0) {
+      addSectionHeader("Volume Efficiency Summary");
+      addLine("Volumes with efficiency data", effData.rows.length);
+      
+      const stateCol = findCol(effData.headers, "state");
+      if (stateCol !== -1) {
+        const enabled = effData.rows.filter(r => r[stateCol]?.toLowerCase() === "enabled").length;
+        const disabled = effData.rows.filter(r => r[stateCol]?.toLowerCase() === "disabled").length;
+        addLine("  - Efficiency Enabled", enabled);
+        addLine("  - Efficiency Disabled", disabled);
+      }
+      yPos += 6;
+    }
+    
+    // === QTREES SUMMARY ===
+    const qtreeData = parseData("pasteQtree");
+    if (qtreeData.rows.length > 0) {
+      addSectionHeader("Qtrees Summary");
+      addLine("Total Qtrees", qtreeData.rows.length);
+      yPos += 6;
+    }
+    
+    // === LUNS SUMMARY ===
+    const lunData = parseData("pasteLun");
+    if (lunData.rows.length > 0) {
+      addSectionHeader("LUNs Summary");
+      addLine("Total LUNs", lunData.rows.length);
+      
+      const sizeCol = findCol(lunData.headers, "size");
+      const usedCol = findCol(lunData.headers, "size-used");
+      
+      if (sizeCol !== -1) {
+        const totalSize = sumColumn(lunData.rows, sizeCol);
+        addLine("Total LUN Capacity", formatBytes(totalSize));
+      }
+      if (usedCol !== -1) {
+        const totalUsed = sumColumn(lunData.rows, usedCol);
+        addLine("Total LUN Used", formatBytes(totalUsed));
+      }
+      yPos += 6;
+    }
+    
+    // === CIFS SHARES SUMMARY ===
+    const cifsData = parseData("pasteCifs");
+    if (cifsData.rows.length > 0) {
+      addSectionHeader("CIFS/SMB Shares Summary");
+      addLine("Total Shares", cifsData.rows.length);
+      yPos += 6;
+    }
+    
+    // === ADD TABLES IF AUTOTABLE IS AVAILABLE ===
+    if (doc.autoTable && aggShowData.rows.length > 0) {
+      doc.addPage();
+      doc.setFontSize(14);
+      doc.text("Aggregates Detail", margin, 20);
+      
+      // Select key columns for the table
+      const tableCols = ["aggregate", "node", "size", "usedsize", "availsize", "percent-used", "state"];
+      const colIdxs = tableCols.map(c => findCol(aggShowData.headers, c)).filter(i => i !== -1);
+      const tableHeaders = colIdxs.map(i => aggShowData.headers[i]);
+      const tableData = aggShowData.rows.map(row => colIdxs.map(i => row[i] || ""));
+      
+      if (tableHeaders.length > 0) {
+        doc.autoTable({
+          startY: 28,
+          head: [tableHeaders],
+          body: tableData,
+          theme: 'grid',
+          styles: { fontSize: 8 },
+          headStyles: { fillColor: [30, 50, 100] }
+        });
+      }
+    }
+    
+    // Save the PDF
+    doc.save("netapp_storage_report.pdf");
+  }
+
   // --- Offline file import into a textarea ---
   function importFileInto(textareaId, file) {
     if (!file) {
@@ -2367,6 +2672,7 @@
   el("btnReset").addEventListener("click", () => { resetDefaults(); });
 
   el("btnExportAll").addEventListener("click", exportAll);
+  el("btnGenerateReport").addEventListener("click", generatePDFReport);
   el("btnClearAll").addEventListener("click", clearAllPastes);
 
   document.querySelectorAll(".btnExportOne").forEach(btn => {
