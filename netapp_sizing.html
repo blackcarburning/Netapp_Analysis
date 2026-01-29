@@ -1880,7 +1880,7 @@
     }
     
     // Helper to sum numeric column WITH proper unit conversion
-    function sumColumnWithConversion(rows, colIdx, headers) {
+    function sumColumnWithConversion(rows, colIdx) {
       if (colIdx === -1) return 0;
       let totalBytes = 0;
       
@@ -1935,15 +1935,15 @@
       const physUsedCol = findCol(aggSpaceData.headers, "physical-used");
       
       if (sizeCol !== -1) {
-        const totalSize = sumColumnWithConversion(aggSpaceData.rows, sizeCol, aggSpaceData.headers);
+        const totalSize = sumColumnWithConversion(aggSpaceData.rows, sizeCol);
         addLine("Total Aggregate Capacity", formatBytes(totalSize));
       }
       if (usedCol !== -1) {
-        const totalUsed = sumColumnWithConversion(aggSpaceData.rows, usedCol, aggSpaceData.headers);
+        const totalUsed = sumColumnWithConversion(aggSpaceData.rows, usedCol);
         addLine("Total Used Space", formatBytes(totalUsed));
       }
       if (physUsedCol !== -1) {
-        const physUsed = sumColumnWithConversion(aggSpaceData.rows, physUsedCol, aggSpaceData.headers);
+        const physUsed = sumColumnWithConversion(aggSpaceData.rows, physUsedCol);
         addLine("Total Physical Used", formatBytes(physUsed));
       }
     }
@@ -1971,15 +1971,15 @@
       const pctUsedCol = findCol(volData.headers, "percent-used");
       
       if (sizeCol !== -1) {
-        const totalSize = sumColumnWithConversion(volData.rows, sizeCol, volData.headers);
+        const totalSize = sumColumnWithConversion(volData.rows, sizeCol);
         addLine("Total Volume Capacity", formatBytes(totalSize));
       }
       if (usedCol !== -1) {
-        const totalUsed = sumColumnWithConversion(volData.rows, usedCol, volData.headers);
+        const totalUsed = sumColumnWithConversion(volData.rows, usedCol);
         addLine("Total Used Space", formatBytes(totalUsed));
       }
       if (availCol !== -1) {
-        const totalAvail = sumColumnWithConversion(volData.rows, availCol, volData.headers);
+        const totalAvail = sumColumnWithConversion(volData.rows, availCol);
         addLine("Total Available Space", formatBytes(totalAvail));
       }
       
@@ -2009,11 +2009,11 @@
       const physUsedCol = findCol(volSpaceData.headers, "physical-used");
       
       if (logUsedCol !== -1) {
-        const totalLogical = sumColumnWithConversion(volSpaceData.rows, logUsedCol, volSpaceData.headers);
+        const totalLogical = sumColumnWithConversion(volSpaceData.rows, logUsedCol);
         addLine("Total Logical Used", formatBytes(totalLogical));
       }
       if (physUsedCol !== -1) {
-        const totalPhysical = sumColumnWithConversion(volSpaceData.rows, physUsedCol, volSpaceData.headers);
+        const totalPhysical = sumColumnWithConversion(volSpaceData.rows, physUsedCol);
         addLine("Total Physical Used", formatBytes(totalPhysical));
       }
       yPos += 6;
@@ -2027,7 +2027,7 @@
       
       const sizeCol = findCol(snapData.headers, "size");
       if (sizeCol !== -1) {
-        const totalSize = sumColumnWithConversion(snapData.rows, sizeCol, snapData.headers);
+        const totalSize = sumColumnWithConversion(snapData.rows, sizeCol);
         addLine("Total Snapshot Size", formatBytes(totalSize));
       }
       yPos += 6;
@@ -2067,11 +2067,11 @@
       const usedCol = findCol(lunData.headers, "size-used");
       
       if (sizeCol !== -1) {
-        const totalSize = sumColumnWithConversion(lunData.rows, sizeCol, lunData.headers);
+        const totalSize = sumColumnWithConversion(lunData.rows, sizeCol);
         addLine("Total LUN Capacity", formatBytes(totalSize));
       }
       if (usedCol !== -1) {
-        const totalUsed = sumColumnWithConversion(lunData.rows, usedCol, lunData.headers);
+        const totalUsed = sumColumnWithConversion(lunData.rows, usedCol);
         addLine("Total LUN Used", formatBytes(totalUsed));
       }
       yPos += 6;
@@ -2132,6 +2132,13 @@
 
   // --- Charting ---
   let chartInstance = null;
+
+  // Textarea IDs for all paste sections
+  const PASTE_TEXTAREA_IDS = [
+    "pasteAggShow", "pasteAggSpace", "pasteAggEfficiency",
+    "pasteVol", "pasteVolSpace", "pasteSnaps", "pasteEff",
+    "pasteQtree", "pasteLun", "pasteCifs"
+  ];
 
   function parseOntapNumber(raw) {
     if (raw == null) return { value: NaN, detectedUnit: null };
@@ -2209,7 +2216,7 @@
         else if (val.endsWith("GB")) unitCounts.GB++;
         else if (val.endsWith("MB")) unitCounts.MB++;
         else if (val.endsWith("KB")) unitCounts.KB++;
-        else if (/^-?\d+$/.test(val)) unitCounts.raw++;
+        else if (/^-?\d+(?:\.\d+)?$/.test(val)) unitCounts.raw++;
       }
     }
     
@@ -2244,8 +2251,7 @@
   }
 
   function updateAllUnitBadges() {
-    const ids = ["pasteAggShow", "pasteAggSpace", "pasteAggEfficiency", "pasteVol", "pasteVolSpace", "pasteSnaps", "pasteEff", "pasteQtree", "pasteLun", "pasteCifs"];
-    ids.forEach(id => updateUnitBadge(id));
+    PASTE_TEXTAREA_IDS.forEach(id => updateUnitBadge(id));
   }
 
   // Unit multipliers relative to bytes (raw) for conversion
@@ -2656,9 +2662,9 @@
   }
 
   function clearAllPastes() {
-    ["pasteAggShow","pasteAggSpace","pasteAggEfficiency","pasteVol","pasteVolSpace","pasteSnaps","pasteEff","pasteQtree","pasteLun","pasteCifs"]
-      .forEach(id => el(id).value = "");
+    PASTE_TEXTAREA_IDS.forEach(id => el(id).value = "");
     refreshChartColumns();
+    updateAllUnitBadges();
   }
 
   async function copyBlock() {
@@ -2861,13 +2867,7 @@
   el("chartSource").addEventListener("change", refreshChartColumns);
 
   // Auto-refresh chart column dropdowns when data is pasted or typed into paste textareas
-  const pasteTextareaIds = [
-    "pasteAggShow", "pasteAggSpace", "pasteAggEfficiency",
-    "pasteVol", "pasteVolSpace", "pasteSnaps", "pasteEff",
-    "pasteQtree", "pasteLun", "pasteCifs"
-  ];
-
-  pasteTextareaIds.forEach(id => {
+  PASTE_TEXTAREA_IDS.forEach(id => {
     const textarea = el(id);
     if (textarea) {
       // Refresh on paste event
