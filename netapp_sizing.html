@@ -1805,6 +1805,25 @@
       return -1;
     }
     
+    // Helper to find column index with strict matching (exact/prefix only, no substring fallback)
+    // Used for aggregate fields to avoid matching unrelated columns like "Total Physical Used Size"
+    function findColStrict(headers, ...names) {
+      // Priority 1: Try exact match for all names first
+      for (const name of names) {
+        const idx = headers.findIndex(h => h.toLowerCase() === name.toLowerCase());
+        if (idx !== -1) return idx;
+      }
+      
+      // Priority 2: Try starts-with match for all names
+      for (const name of names) {
+        const idx = headers.findIndex(h => h.toLowerCase().startsWith(name.toLowerCase()));
+        if (idx !== -1) return idx;
+      }
+      
+      // No substring fallback - return -1 if not found
+      return -1;
+    }
+    
     // Helper to sum numeric column WITH proper unit conversion
     function sumColumnWithConversion(rows, colIdx) {
       if (colIdx === -1) return 0;
@@ -1855,13 +1874,18 @@
     
     // Aggregate sizes from show-space
     if (aggSpaceData.rows.length > 0) {
-      const sizeCol = findCol(aggSpaceData.headers, "aggregate-size", "size");
+      // Use strict matching for aggregate-size to avoid matching unrelated "size" columns
+      // Only match exact field names like "aggregate-size" or "Size" (ONTAP fields)
+      const sizeCol = findColStrict(aggSpaceData.headers, "aggregate-size", "Size");
       const usedCol = findCol(aggSpaceData.headers, "used-including-snapshot-reserve", "total-used", "used");
       const physUsedCol = findCol(aggSpaceData.headers, "physical-used");
       
       if (sizeCol !== -1) {
         const totalSize = sumColumnWithConversion(aggSpaceData.rows, sizeCol);
         addLine("Total Aggregate Capacity", formatBytes(totalSize));
+      } else {
+        // Column not found - show N/A instead of matching incorrect column
+        addLine("Total Aggregate Capacity", "N/A");
       }
       if (usedCol !== -1) {
         const totalUsed = sumColumnWithConversion(aggSpaceData.rows, usedCol);
