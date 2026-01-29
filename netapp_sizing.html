@@ -1782,12 +1782,26 @@
       return { headers, rows };
     }
     
-    // Helper to find column index
+    // Helper to find column index with priority-based matching
     function findCol(headers, ...names) {
+      // Priority 1: Try exact match for all names first
+      for (const name of names) {
+        const idx = headers.findIndex(h => h.toLowerCase() === name.toLowerCase());
+        if (idx !== -1) return idx;
+      }
+      
+      // Priority 2: Try starts-with match for all names
+      for (const name of names) {
+        const idx = headers.findIndex(h => h.toLowerCase().startsWith(name.toLowerCase()));
+        if (idx !== -1) return idx;
+      }
+      
+      // Priority 3: Try contains match for all names (original behavior)
       for (const name of names) {
         const idx = headers.findIndex(h => h.toLowerCase().includes(name.toLowerCase()));
         if (idx !== -1) return idx;
       }
+      
       return -1;
     }
     
