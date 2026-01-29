@@ -2660,24 +2660,13 @@
   
   // Refresh all UI elements after importing JSON config
   function refreshAllAfterImport() {
-    // Refresh chart column dropdowns
-    if (typeof refreshChartColumns === 'function') {
-      refreshChartColumns();
-    }
-    
     // Refresh unit badges if they exist
     if (typeof updateAllUnitBadges === 'function') {
       updateAllUnitBadges();
     }
     
     // Trigger input events on all paste textareas to refresh any listeners
-    const pasteTextareaIds = [
-      "pasteAggSpace", "pasteAggEfficiency",
-      "pasteVol", "pasteVolSpace", "pasteSnaps",
-      "pasteEff", "pasteQtree", "pasteLun", "pasteCifs"
-    ];
-    
-    pasteTextareaIds.forEach(id => {
+    PASTE_TEXTAREA_IDS.forEach(id => {
       const textarea = el(id);
       if (textarea && textarea.value.trim()) {
         textarea.dispatchEvent(new Event('input', { bubbles: true }));
