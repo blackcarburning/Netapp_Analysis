@@ -182,6 +182,31 @@
       margin-top: 10px;
       align-items: center;
     }
+
+    /* Detected unit badge */
+    .unit-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(122,162,255,0.15);
+      border: 1px solid rgba(122,162,255,0.4);
+      color: #7aa2ff;
+      white-space: nowrap;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    .unit-badge.raw {
+      background: rgba(255,170,100,0.15);
+      border-color: rgba(255,170,100,0.4);
+      color: #ffaa64;
+    }
+    .unit-badge.none {
+      background: rgba(169,180,214,0.1);
+      border-color: rgba(169,180,214,0.3);
+      color: var(--muted);
+    }
   </style>
 </head>
 
@@ -534,7 +559,7 @@
 
     <!-- PASTE SECTIONS -->
     <div class="section" data-key="aggregates-show">
-      <h3>Aggregates (show)</h3>
+      <h3>Aggregates (show) <span class="unit-badge none" id="unitBadge_pasteAggShow">No data</span></h3>
       <div class="meta">Paste output of: <code class="kbd">storage aggregate show -fields …</code></div>
       <textarea class="paste" id="pasteAggShow" spellcheck="false" placeholder="Paste storage aggregate show output here…"></textarea>
       <div class="btns">
@@ -543,7 +568,7 @@
     </div>
 
     <div class="section" data-key="aggregates-space">
-      <h3>Aggregates (show-space)</h3>
+      <h3>Aggregates (show-space) <span class="unit-badge none" id="unitBadge_pasteAggSpace">No data</span></h3>
       <div class="meta">Paste output of: <code class="kbd">storage aggregate show-space -fields …</code></div>
       <textarea class="paste" id="pasteAggSpace" spellcheck="false" placeholder="Paste storage aggregate show-space output here…"></textarea>
       <div class="btns">
@@ -552,7 +577,7 @@
     </div>
 
     <div class="section" data-key="aggregates-efficiency">
-      <h3>Aggregates (show-efficiency)</h3>
+      <h3>Aggregates (show-efficiency) <span class="unit-badge none" id="unitBadge_pasteAggEfficiency">No data</span></h3>
       <div class="meta">Paste output of: <code class="kbd">storage aggregate show-efficiency -fields …</code></div>
       <textarea class="paste" id="pasteAggEfficiency" spellcheck="false" placeholder="Paste storage aggregate show-efficiency output here…"></textarea>
       <div class="btns">
@@ -561,7 +586,7 @@
     </div>
 
     <div class="section" data-key="volumes">
-      <h3>Volumes</h3>
+      <h3>Volumes <span class="unit-badge none" id="unitBadge_pasteVol">No data</span></h3>
       <div class="meta">Paste output of: <code class="kbd">volume show -fields …</code></div>
       <textarea class="paste" id="pasteVol" spellcheck="false" placeholder="Paste volume show output here…"></textarea>
       <div class="btns">
@@ -570,7 +595,7 @@
     </div>
 
     <div class="section" data-key="volspace">
-      <h3>Volume show-space</h3>
+      <h3>Volume show-space <span class="unit-badge none" id="unitBadge_pasteVolSpace">No data</span></h3>
       <div class="meta">Paste output of: <code class="kbd">volume show-space -fields …</code></div>
       <textarea class="paste" id="pasteVolSpace" spellcheck="false" placeholder="Paste volume show-space output here…"></textarea>
       <div class="btns">
@@ -579,7 +604,7 @@
     </div>
 
     <div class="section" data-key="snapshots">
-      <h3>Snapshots</h3>
+      <h3>Snapshots <span class="unit-badge none" id="unitBadge_pasteSnaps">No data</span></h3>
       <div class="meta">Paste output of: <code class="kbd">volume snapshot show -fields …</code></div>
       <textarea class="paste" id="pasteSnaps" spellcheck="false" placeholder="Paste snapshot output here…"></textarea>
       <div class="btns">
@@ -588,7 +613,7 @@
     </div>
 
     <div class="section" data-key="efficiency">
-      <h3>Volume efficiency</h3>
+      <h3>Volume efficiency <span class="unit-badge none" id="unitBadge_pasteEff">No data</span></h3>
       <div class="meta">Paste output of: <code class="kbd">volume efficiency show -fields …</code></div>
       <textarea class="paste" id="pasteEff" spellcheck="false" placeholder="Paste efficiency output here…"></textarea>
       <div class="btns">
@@ -597,7 +622,7 @@
     </div>
 
     <div class="section" data-key="qtrees">
-      <h3>Qtrees</h3>
+      <h3>Qtrees <span class="unit-badge none" id="unitBadge_pasteQtree">No data</span></h3>
       <div class="meta">Paste output of: <code class="kbd">volume qtree show -fields …</code></div>
       <textarea class="paste" id="pasteQtree" spellcheck="false" placeholder="Paste qtree output here…"></textarea>
       <div class="btns">
@@ -606,7 +631,7 @@
     </div>
 
     <div class="section" data-key="luns">
-      <h3>LUNs</h3>
+      <h3>LUNs <span class="unit-badge none" id="unitBadge_pasteLun">No data</span></h3>
       <div class="meta">Paste output of: <code class="kbd">lun show -fields …</code></div>
       <textarea class="paste" id="pasteLun" spellcheck="false" placeholder="Paste LUN output here…"></textarea>
       <div class="btns">
@@ -615,7 +640,7 @@
     </div>
 
     <div class="section" data-key="cifs">
-      <h3>SMB shares</h3>
+      <h3>SMB shares <span class="unit-badge none" id="unitBadge_pasteCifs">No data</span></h3>
       <div class="meta">Paste output of: <code class="kbd">vserver cifs share show -fields …</code></div>
       <textarea class="paste" id="pasteCifs" spellcheck="false" placeholder="Paste CIFS share output here…"></textarea>
       <div class="btns">
@@ -1854,13 +1879,22 @@
       return -1;
     }
     
-    // Helper to sum numeric column
-    function sumColumn(rows, colIdx) {
+    // Helper to sum numeric column WITH proper unit conversion
+    function sumColumnWithConversion(rows, colIdx, headers) {
       if (colIdx === -1) return 0;
-      return rows.reduce((sum, row) => {
-        const val = parseFloat(row[colIdx]);
-        return sum + (isNaN(val) ? 0 : val);
-      }, 0);
+      let totalBytes = 0;
+      
+      for (const row of rows) {
+        const rawVal = row[colIdx];
+        const parsed = parseOntapNumber(rawVal);
+        if (Number.isFinite(parsed.value) && parsed.detectedUnit !== "percent") {
+          // parseOntapNumber already converts to bytes for values with suffixes
+          // For plain numbers, assume bytes (raw)
+          totalBytes += parsed.value;
+        }
+      }
+      
+      return totalBytes;
     }
     
     // Helper to format bytes
@@ -1901,15 +1935,15 @@
       const physUsedCol = findCol(aggSpaceData.headers, "physical-used");
       
       if (sizeCol !== -1) {
-        const totalSize = sumColumn(aggSpaceData.rows, sizeCol);
+        const totalSize = sumColumnWithConversion(aggSpaceData.rows, sizeCol, aggSpaceData.headers);
         addLine("Total Aggregate Capacity", formatBytes(totalSize));
       }
       if (usedCol !== -1) {
-        const totalUsed = sumColumn(aggSpaceData.rows, usedCol);
+        const totalUsed = sumColumnWithConversion(aggSpaceData.rows, usedCol, aggSpaceData.headers);
         addLine("Total Used Space", formatBytes(totalUsed));
       }
       if (physUsedCol !== -1) {
-        const physUsed = sumColumn(aggSpaceData.rows, physUsedCol);
+        const physUsed = sumColumnWithConversion(aggSpaceData.rows, physUsedCol, aggSpaceData.headers);
         addLine("Total Physical Used", formatBytes(physUsed));
       }
     }
@@ -1937,15 +1971,15 @@
       const pctUsedCol = findCol(volData.headers, "percent-used");
       
       if (sizeCol !== -1) {
-        const totalSize = sumColumn(volData.rows, sizeCol);
+        const totalSize = sumColumnWithConversion(volData.rows, sizeCol, volData.headers);
         addLine("Total Volume Capacity", formatBytes(totalSize));
       }
       if (usedCol !== -1) {
-        const totalUsed = sumColumn(volData.rows, usedCol);
+        const totalUsed = sumColumnWithConversion(volData.rows, usedCol, volData.headers);
         addLine("Total Used Space", formatBytes(totalUsed));
       }
       if (availCol !== -1) {
-        const totalAvail = sumColumn(volData.rows, availCol);
+        const totalAvail = sumColumnWithConversion(volData.rows, availCol, volData.headers);
         addLine("Total Available Space", formatBytes(totalAvail));
       }
       
@@ -1975,11 +2009,11 @@
       const physUsedCol = findCol(volSpaceData.headers, "physical-used");
       
       if (logUsedCol !== -1) {
-        const totalLogical = sumColumn(volSpaceData.rows, logUsedCol);
+        const totalLogical = sumColumnWithConversion(volSpaceData.rows, logUsedCol, volSpaceData.headers);
         addLine("Total Logical Used", formatBytes(totalLogical));
       }
       if (physUsedCol !== -1) {
-        const totalPhysical = sumColumn(volSpaceData.rows, physUsedCol);
+        const totalPhysical = sumColumnWithConversion(volSpaceData.rows, physUsedCol, volSpaceData.headers);
         addLine("Total Physical Used", formatBytes(totalPhysical));
       }
       yPos += 6;
@@ -1993,7 +2027,7 @@
       
       const sizeCol = findCol(snapData.headers, "size");
       if (sizeCol !== -1) {
-        const totalSize = sumColumn(snapData.rows, sizeCol);
+        const totalSize = sumColumnWithConversion(snapData.rows, sizeCol, snapData.headers);
         addLine("Total Snapshot Size", formatBytes(totalSize));
       }
       yPos += 6;
@@ -2033,11 +2067,11 @@
       const usedCol = findCol(lunData.headers, "size-used");
       
       if (sizeCol !== -1) {
-        const totalSize = sumColumn(lunData.rows, sizeCol);
+        const totalSize = sumColumnWithConversion(lunData.rows, sizeCol, lunData.headers);
         addLine("Total LUN Capacity", formatBytes(totalSize));
       }
       if (usedCol !== -1) {
-        const totalUsed = sumColumn(lunData.rows, usedCol);
+        const totalUsed = sumColumnWithConversion(lunData.rows, usedCol, lunData.headers);
         addLine("Total LUN Used", formatBytes(totalUsed));
       }
       yPos += 6;
@@ -2089,6 +2123,7 @@
     reader.onload = () => {
       el(textareaId).value = String(reader.result || "");
       refreshChartColumns();
+      updateUnitBadge(textareaId);
       alert(`Imported into ${textareaId}.`);
     };
     reader.onerror = () => alert("Failed to read file.");
@@ -2135,6 +2170,82 @@
 
     const n = parseFloat(s);
     return { value: Number.isFinite(n) ? n : NaN, detectedUnit: null };
+  }
+
+  /**
+   * Detect the predominant unit used in size columns of pasted data
+   */
+  function detectDataUnit(textareaId) {
+    const text = el(textareaId).value;
+    if (!text.trim()) return { unit: "none", label: "No data" };
+    
+    const delimiter = normDelimiter(el("delimiter").value);
+    const aoa = parseDelimited(text, delimiter);
+    
+    if (aoa.length < 2) return { unit: "none", label: "No data" };
+    
+    const headers = aoa[0].map(h => String(h).trim().toLowerCase());
+    const dataRows = aoa.slice(1);
+    
+    // Find size-related columns
+    const sizeKeywords = ["size", "used", "available", "avail", "total", "space", "capacity", "footprint", "saved"];
+    const sizeColIdxs = headers.map((h, i) => {
+      const isSizeCol = sizeKeywords.some(kw => h.includes(kw)) && !h.includes("percent");
+      return isSizeCol ? i : -1;
+    }).filter(i => i >= 0);
+    
+    if (sizeColIdxs.length === 0) return { unit: "none", label: "No size cols" };
+    
+    // Count unit occurrences
+    const unitCounts = { raw: 0, KB: 0, MB: 0, GB: 0, TB: 0, PB: 0 };
+    
+    for (const row of dataRows) {
+      for (const colIdx of sizeColIdxs) {
+        const val = String(row[colIdx] || "").trim().toUpperCase();
+        if (!val || val === "-") continue;
+        
+        if (val.endsWith("PB")) unitCounts.PB++;
+        else if (val.endsWith("TB")) unitCounts.TB++;
+        else if (val.endsWith("GB")) unitCounts.GB++;
+        else if (val.endsWith("MB")) unitCounts.MB++;
+        else if (val.endsWith("KB")) unitCounts.KB++;
+        else if (/^-?\d+$/.test(val)) unitCounts.raw++;
+      }
+    }
+    
+    // Find predominant unit
+    const entries = Object.entries(unitCounts).filter(([k, v]) => v > 0);
+    if (entries.length === 0) return { unit: "none", label: "No size data" };
+    
+    const sorted = entries.sort((a, b) => b[1] - a[1]);
+    const topUnit = sorted[0][0];
+    const topCount = sorted[0][1];
+    const total = entries.reduce((s, [k, v]) => s + v, 0);
+    
+    if (entries.length > 1 && topCount / total < 0.8) {
+      return { unit: "mixed", label: "Mixed units" };
+    }
+    
+    if (topUnit === "raw") {
+      return { unit: "raw", label: "Raw (bytes)" };
+    }
+    return { unit: topUnit, label: topUnit };
+  }
+
+  function updateUnitBadge(textareaId) {
+    const badge = document.getElementById(`unitBadge_${textareaId}`);
+    if (!badge) return;
+    
+    const detected = detectDataUnit(textareaId);
+    badge.textContent = detected.label;
+    badge.className = "unit-badge";
+    if (detected.unit === "none") badge.classList.add("none");
+    else if (detected.unit === "raw") badge.classList.add("raw");
+  }
+
+  function updateAllUnitBadges() {
+    const ids = ["pasteAggShow", "pasteAggSpace", "pasteAggEfficiency", "pasteVol", "pasteVolSpace", "pasteSnaps", "pasteEff", "pasteQtree", "pasteLun", "pasteCifs"];
+    ids.forEach(id => updateUnitBadge(id));
   }
 
   // Unit multipliers relative to bytes (raw) for conversion
@@ -2762,12 +2873,15 @@
       // Refresh on paste event
       textarea.addEventListener("paste", () => {
         setTimeout(refreshChartColumns, 100); // Small delay to allow paste to complete
+        setTimeout(() => updateUnitBadge(id), 100);
       });
 
       // Refresh on input event (typing, cutting, etc.) with debounce
       textarea.addEventListener("input", () => {
         clearTimeout(textarea._refreshTimeout);
         textarea._refreshTimeout = setTimeout(refreshChartColumns, 300);
+        clearTimeout(textarea._unitBadgeTimeout);
+        textarea._unitBadgeTimeout = setTimeout(() => updateUnitBadge(id), 300);
       });
     }
   });
@@ -2835,6 +2949,7 @@
   ensureOfflineLibs();
   loadSelectionsAndInitPickers().then(() => {
     refreshChartColumns();
+    updateAllUnitBadges();
   });
 </script>
 </body>
