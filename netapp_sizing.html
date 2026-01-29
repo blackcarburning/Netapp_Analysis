@@ -313,12 +313,6 @@
 
     <h2 style="margin-top:14px;">Field sets (editable + tick-box picker)</h2>
 
-    <label for="fieldsAggShow">storage aggregate show -fields</label>
-    <input id="fieldsAggShow" type="text" />
-    <div id="picker_fieldsAggShow"></div>
-
-    <div style="height:10px"></div>
-
     <label for="fieldsAggSpace">storage aggregate show-space -fields</label>
     <input id="fieldsAggSpace" type="text" />
     <div id="picker_fieldsAggSpace"></div>
@@ -386,7 +380,6 @@
         <div>
           <label for="importTarget">Target</label>
           <select id="importTarget">
-            <option value="pasteAggShow">Aggregates (show)</option>
             <option value="pasteAggSpace">Aggregates (show-space)</option>
             <option value="pasteAggEfficiency">Aggregates (show-efficiency)</option>
             <option value="pasteVol">Volumes</option>
@@ -464,7 +457,6 @@
           <label for="chartSource">Data source</label>
           <select id="chartSource">
             <option value="pasteVol">Volumes</option>
-            <option value="pasteAggShow">Aggregates (show)</option>
             <option value="pasteAggSpace">Aggregates (show-space)</option>
             <option value="pasteAggEfficiency">Aggregates (show-efficiency)</option>
             <option value="pasteVolSpace">Vol_Show_Space</option>
@@ -558,15 +550,6 @@
     </div>
 
     <!-- PASTE SECTIONS -->
-    <div class="section" data-key="aggregates-show">
-      <h3>Aggregates (show) <span class="unit-badge none" id="unitBadge_pasteAggShow">No data</span></h3>
-      <div class="meta">Paste output of: <code class="kbd">storage aggregate show -fields …</code></div>
-      <textarea class="paste" id="pasteAggShow" spellcheck="false" placeholder="Paste storage aggregate show output here…"></textarea>
-      <div class="btns">
-        <button class="btnExportOne" data-target="pasteAggShow" data-sheet="Aggregates_Show">Export Aggregates_Show.xlsx</button>
-      </div>
-    </div>
-
     <div class="section" data-key="aggregates-space">
       <h3>Aggregates (show-space) <span class="unit-badge none" id="unitBadge_pasteAggSpace">No data</span></h3>
       <div class="meta">Paste output of: <code class="kbd">storage aggregate show-space -fields …</code></div>
@@ -805,75 +788,6 @@
      ========================= */
 
   const FIELD_CATALOG = {
-    fieldsAggShow: [
-      { f:"aggregate", d:"Aggregate" },
-      { f:"storage-type", d:"Storage Type" },
-      { f:"chksumstyle", d:"Checksum Style" },
-      { f:"diskcount", d:"Number Of Disks" },
-      { f:"mirror", d:"Is Mirrored" },
-      { f:"disklist", d:"Disks for First Plex" },
-      { f:"mirror-disklist", d:"Disks for Mirrored Plex" },
-      { f:"node", d:"Node" },
-      { f:"free-space-realloc", d:"Free Space Reallocation" },
-      { f:"ha-policy", d:"HA Policy" },
-      { f:"percent-snapshot-space", d:"Space Reserved for Snapshot Copies" },
-      { f:"space-nearly-full-threshold-percent", d:"Aggregate Nearly Full Threshold Percent" },
-      { f:"space-full-threshold-percent", d:"Aggregate Full Threshold Percent" },
-      { f:"hybrid-enabled", d:"Hybrid Enabled" },
-      { f:"availsize", d:"Available Size" },
-      { f:"chksumenabled", d:"Checksum Enabled" },
-      { f:"chksumstatus", d:"Checksum Status" },
-      { f:"cluster", d:"Cluster" },
-      { f:"cluster-id", d:"Home Cluster ID" },
-      { f:"dr-home-id", d:"DR Home ID" },
-      { f:"dr-home-name", d:"DR Home Name" },
-      { f:"has-mroot", d:"Has Mroot Volume" },
-      { f:"has-partner-mroot", d:"Has Partner Node Mroot Volume" },
-      { f:"home-id", d:"Home ID" },
-      { f:"home-name", d:"Home Name" },
-      { f:"hybrid-cache-size-total", d:"Total Hybrid Cache Size" },
-      { f:"hybrid", d:"Hybrid" },
-      { f:"inconsistent", d:"Inconsistent" },
-      { f:"is-home", d:"Is Aggregate Home" },
-      { f:"maxraidsize", d:"Max RAID Size" },
-      { f:"cache-raid-group-size", d:"Flash Pool SSD Tier Maximum RAID Group Size" },
-      { f:"owner-id", d:"Owner ID" },
-      { f:"owner-name", d:"Owner Name" },
-      { f:"percent-used", d:"Used Percentage" },
-      { f:"plexes", d:"Plexes" },
-      { f:"raidgroups", d:"RAID Groups" },
-      { f:"raidstatus", d:"RAID Status" },
-      { f:"raidtype", d:"RAID Type" },
-      { f:"resyncsnaptime", d:"SyncMirror Resync Snapshot Frequency in Minutes" },
-      { f:"root", d:"Is Root" },
-      { f:"sis-metadata-space-used", d:"Space Used by Metadata for Volume Efficiency" },
-      { f:"size", d:"Size" },
-      { f:"state", d:"State" },
-      { f:"usedsize", d:"Used Size" },
-      { f:"uses-shared-disks", d:"Uses Shared Disks" },
-      { f:"volcount", d:"Number Of Volumes" },
-      { f:"physical-used", d:"Total Physical Used Size" },
-      { f:"physical-used-percent", d:"Physical Used Percentage" },
-      { f:"snaplock-type", d:"SnapLock Type" },
-      { f:"is-nve-capable", d:"Is NVE Capable" },
-      { f:"resync-priority", d:"Resynchronization Priority" },
-      { f:"data-compaction-space-saved", d:"Space Saved by Data Compaction" },
-      { f:"data-compaction-space-saved-percent", d:"Percentage Saved by Data Compaction" },
-      { f:"data-compacted-count", d:"Amount of Compacted Data" },
-      { f:"creation-timestamp", d:"Timestamp of Aggregate Creation" },
-      { f:"single-instance-data-logging", d:"Enable SIDL" },
-      { f:"composite", d:"Composite" },
-      { f:"is-fabricpool-mirrored", d:"Is FabricPool Mirrored" },
-      { f:"composite-capacity-tier-used", d:"Capacity Tier Used Size" },
-      { f:"sis-space-saved", d:"Space Saved by Storage Efficiency" },
-      { f:"sis-space-saved-percent", d:"Percentage of Space Saved by Storage Efficiency" },
-      { f:"sis-shared-count", d:"Amount of Shared Bytes Count by Storage Efficiency" },
-      { f:"is-inactive-data-reporting-enabled", d:"Inactive Data Reporting Enabled" },
-      { f:"inactive-data-reporting-start-timestamp", d:"Timestamp when Inactive Data Reporting was Enabled" },
-      { f:"encrypt-with-aggr-key", d:"Enable Aggregate Level Encryption" },
-      { f:"drive-protection-enabled", d:"Aggregate Uses Data Protected SEDs" },
-      { f:"azcs-read-optimization", d:"AZCS Read Optimization" }
-    ],
     fieldsAggSpace: [
       { f:"aggregate-name", d:"Aggregate" },
       { f:"bin-num", d:"Bin Number" },
@@ -1409,11 +1323,9 @@
 
     lines.push(sectionHeader(prefix, "AGGREGATES / LOCAL TIERS"));
     {
-      const fieldsShow = el("fieldsAggShow").value.trim();
       const fieldsSpace = el("fieldsAggSpace").value.trim();
       const fieldsEfficiency = el("fieldsAggEfficiency").value.trim();
       
-      lines.push(fieldsShow ? `storage aggregate show -fields ${fieldsShow}` : `storage aggregate show`);
       lines.push(fieldsSpace ? `storage aggregate show-space -fields ${fieldsSpace}` : `storage aggregate show-space`);
       lines.push(fieldsEfficiency ? `storage aggregate show-efficiency -fields ${fieldsEfficiency}` : `storage aggregate show-efficiency`);
     }
@@ -1775,7 +1687,6 @@
     const toUnit = el("xlsxUnitTo").value;
 
     const sources = [
-      { id: "pasteAggShow",      sheet: "Aggregates_Show" },
       { id: "pasteAggSpace",     sheet: "Aggregates_Space" },
       { id: "pasteAggEfficiency", sheet: "Aggregates_Efficiency" },
       { id: "pasteVol",      sheet: "Volumes" },
@@ -1920,12 +1831,11 @@
     // === AGGREGATES SUMMARY ===
     addSectionHeader("Aggregates Summary");
     
-    const aggShowData = parseData("pasteAggShow");
     const aggSpaceData = parseData("pasteAggSpace");
     const aggEffData = parseData("pasteAggEfficiency");
     
     // Count aggregates
-    const aggCount = aggShowData.rows.length || aggSpaceData.rows.length || aggEffData.rows.length;
+    const aggCount = aggSpaceData.rows.length || aggEffData.rows.length;
     addLine("Total Aggregates", aggCount || "No data");
     
     // Aggregate sizes from show-space
@@ -2135,7 +2045,7 @@
 
   // Textarea IDs for all paste sections
   const PASTE_TEXTAREA_IDS = [
-    "pasteAggShow", "pasteAggSpace", "pasteAggEfficiency",
+    "pasteAggSpace", "pasteAggEfficiency",
     "pasteVol", "pasteVolSpace", "pasteSnaps", "pasteEff",
     "pasteQtree", "pasteLun", "pasteCifs"
   ];
@@ -2532,14 +2442,6 @@
      ========================= */
 
   const DEFAULT_SELECTIONS = {
-    fieldsAggShow: [
-      "aggregate","node","state","size","availsize","usedsize","percent-used",
-      "storage-type","raidtype","raidstatus","diskcount","volcount",
-      "physical-used","physical-used-percent",
-      "sis-space-saved","sis-space-saved-percent",
-      "data-compaction-space-saved","data-compaction-space-saved-percent",
-      "snaplock-type","is-nve-capable","encrypt-with-aggr-key"
-    ],
     fieldsAggSpace: [
       "aggregate-name","aggregate","volume-footprints","volume-footprints-percent",
       "aggregate-metadata","aggregate-metadata-percent",
@@ -2621,7 +2523,6 @@
   async function loadSelectionsAndInitPickers() {
     for (const k of Object.keys(DEFAULT_SELECTIONS)) setInputFields(k, DEFAULT_SELECTIONS[k]);
 
-    PICKERS.fieldsAggShow = renderPicker("fieldsAggShow", "storage aggregate show");
     PICKERS.fieldsAggSpace = renderPicker("fieldsAggSpace", "storage aggregate show-space");
     PICKERS.fieldsAggEfficiency = renderPicker("fieldsAggEfficiency", "storage aggregate show-efficiency");
     PICKERS.fieldsVol = renderPicker("fieldsVol", "volume show");
@@ -2685,8 +2586,8 @@
      - Now includes the pasted CSV/text boxes + chart UI selections
      ========================= */
 
-  const CONFIG_KEYS = ["fieldsAggShow","fieldsAggSpace","fieldsAggEfficiency","fieldsVol","fieldsVolSpace","fieldsSnaps","fieldsEff","fieldsQtree","fieldsLun","fieldsCifs"];
-  const DATA_KEYS = ["pasteAggShow","pasteAggSpace","pasteAggEfficiency","pasteVol","pasteVolSpace","pasteSnaps","pasteEff","pasteQtree","pasteLun","pasteCifs"];
+  const CONFIG_KEYS = ["fieldsAggSpace","fieldsAggEfficiency","fieldsVol","fieldsVolSpace","fieldsSnaps","fieldsEff","fieldsQtree","fieldsLun","fieldsCifs"];
+  const DATA_KEYS = ["pasteAggSpace","pasteAggEfficiency","pasteVol","pasteVolSpace","pasteSnaps","pasteEff","pasteQtree","pasteLun","pasteCifs"];
 
   function collectCurrentConfig() {
     const fields = {};
