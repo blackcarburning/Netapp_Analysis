@@ -512,7 +512,14 @@
           </select>
         </div>
       </div>
-      <div class="tiny" style="margin-top:4px;">Note: Data with unit suffixes (e.g., "10GB") is automatically converted to bytes. Use "Raw (bytes)" as the from-unit for such data.</div>
+      <div class="tiny" style="margin-top:4px;">
+        <strong>How to use:</strong> 
+        <ul style="margin: 4px 0; padding-left: 16px;">
+          <li>If data has unit suffixes (e.g., "10GB"), it's auto-converted to bytes. Set "from" to <code>Raw (bytes)</code>.</li>
+          <li>If data is plain numbers without suffixes, set "from" to match the unit used when collecting (e.g., if you ran with <code>set -units gb</code>, select <code>GB</code>).</li>
+          <li>Set "to" to your desired display unit.</li>
+        </ul>
+      </div>
 
       <div class="btns">
         <button id="btnBuildChart">Build chart</button>
@@ -1626,6 +1633,7 @@
         }
 
         let finalValue;
+        let actualSourceUnit; // Track the actual unit of the value after parsing
 
         if (sc.mode === "single") {
           // If value has a different unit (unexpected), convert to the header unit to keep column consistent
@@ -1633,28 +1641,44 @@
             const bytes = p.num * unitToBytesMult(p.unit);
             const numInUnit = bytes / unitToBytesMult(sc.singleUnit);
             finalValue = numInUnit;
-          } else {
+            actualSourceUnit = sc.singleUnit;
+          } else if (p.unit) {
+            // Value has unit suffix matching the single unit
             finalValue = p.num;
+            actualSourceUnit = sc.singleUnit;
+          } else {
+            // Plain number, no unit suffix
+            finalValue = p.num;
+            actualSourceUnit = null; // Will use fromUnit
           }
         } else if (sc.mode === "bytes") {
-          const unit = p.unit || "raw";
+          // Convert to bytes
           const bytes = p.num * (p.unit ? unitToBytesMult(p.unit) : 1);
           finalValue = bytes;
+          actualSourceUnit = p.unit ? "raw" : null; // If had unit, now in bytes; else needs fromUnit
         } else {
           // raw: strip any unit if present, otherwise keep number
-          finalValue = p.num;
+          if (p.unit) {
+            // Value had a unit suffix - convert to bytes
+            finalValue = p.num * unitToBytesMult(p.unit);
+            actualSourceUnit = "raw";
+          } else {
+            // Plain number
+            finalValue = p.num;
+            actualSourceUnit = null; // Will use fromUnit
+          }
         }
 
         // Apply user-requested unit conversion
         if (fromUnit !== "none" && toUnit !== "none") {
           // Determine the source unit for conversion
           let sourceUnit;
-          if (sc.mode === "single" && sc.singleUnit) {
-            sourceUnit = sc.singleUnit;
-          } else if (sc.mode === "bytes") {
-            sourceUnit = "raw";
+          if (actualSourceUnit !== null) {
+            // Value had a unit suffix, already converted
+            sourceUnit = actualSourceUnit;
           } else {
-            sourceUnit = "raw";
+            // Plain number - use user-specified fromUnit
+            sourceUnit = fromUnit;
           }
           // Apply conversion
           finalValue = convertUnit(finalValue, sourceUnit, toUnit);
@@ -2075,32 +2099,42 @@
   let chartInstance = null;
 
   function parseOntapNumber(raw) {
-    if (raw == null) return NaN;
+    if (raw == null) return { value: NaN, detectedUnit: null };
     let s = String(raw).trim();
-    if (!s) return NaN;
+    if (!s) return { value: NaN, detectedUnit: null };
 
     s = s.replace(/,/g, "");
 
+    // Handle percentages separately - no unit conversion needed
     if (s.endsWith("%")) {
       const n = parseFloat(s.slice(0, -1));
-      return Number.isFinite(n) ? n : NaN;
+      return { value: Number.isFinite(n) ? n : NaN, detectedUnit: "percent" };
     }
 
+    // Check for unit suffix
     const m = s.match(/^(-?\d+(?:\.\d+)?)(?:\s*([KMGTP]B))?$/i);
     if (m) {
       const num = parseFloat(m[1]);
-      if (!Number.isFinite(num)) return NaN;
-      const unit = (m[2] || "").toUpperCase();
-      const mult = unit === "KB" ? 1024 :
-                   unit === "MB" ? 1024**2 :
-                   unit === "GB" ? 1024**3 :
-                   unit === "TB" ? 1024**4 :
-                   unit === "PB" ? 1024**5 : 1;
-      return num * mult;
+      if (!Number.isFinite(num)) return { value: NaN, detectedUnit: null };
+      
+      const unitSuffix = m[2] ? m[2].toUpperCase() : null;
+      
+      if (unitSuffix) {
+        // Value has a unit suffix - convert to bytes and note it was converted
+        const mult = unitSuffix === "KB" ? 1024 :
+                     unitSuffix === "MB" ? 1024**2 :
+                     unitSuffix === "GB" ? 1024**3 :
+                     unitSuffix === "TB" ? 1024**4 :
+                     unitSuffix === "PB" ? 1024**5 : 1;
+        return { value: num * mult, detectedUnit: "bytes" }; // Already in bytes
+      } else {
+        // Plain number - no unit suffix, needs user to specify what it represents
+        return { value: num, detectedUnit: null };
+      }
     }
 
     const n = parseFloat(s);
-    return Number.isFinite(n) ? n : NaN;
+    return { value: Number.isFinite(n) ? n : NaN, detectedUnit: null };
   }
 
   // Unit multipliers relative to bytes (raw) for conversion
@@ -2223,20 +2257,44 @@
     }
 
     // Get unit conversion settings
-    // Note: parseOntapNumber converts all values to bytes, so fromUnit should be "raw" or match the raw data format
     const fromUnit = el("chartUnitFrom").value;
     const toUnit = el("chartUnitTo").value;
 
-    const rows = aoa.slice(1).map(r => ({
-      label: (r[li] ?? "").trim(),
-      value: parseOntapNumber(r[vi])
-    }))
-    .filter(x => x.label.length > 0 && Number.isFinite(x.value))
-    .map(x => ({
-      label: x.label,
-      // parseOntapNumber returns bytes, so we convert from raw/bytes or the specified fromUnit
-      value: convertUnit(x.value, fromUnit === "none" ? "none" : (fromUnit || "raw"), toUnit)
-    }));
+    const rows = aoa.slice(1).map(r => {
+      const labelVal = (r[li] ?? "").trim();
+      const parsed = parseOntapNumber(r[vi]);
+      return {
+        label: labelVal,
+        rawValue: parsed.value,
+        detectedUnit: parsed.detectedUnit
+      };
+    })
+    .filter(x => x.label.length > 0 && Number.isFinite(x.rawValue))
+    .map(x => {
+      let finalValue = x.rawValue;
+      
+      // Skip conversion for percentages
+      if (x.detectedUnit === "percent") {
+        return { label: x.label, value: finalValue };
+      }
+      
+      // Determine the actual source unit
+      let actualFromUnit;
+      if (x.detectedUnit === "bytes") {
+        // Value already converted to bytes by parseOntapNumber (had suffix like "10GB")
+        actualFromUnit = "raw"; // "raw" means bytes
+      } else {
+        // Plain number - use user-specified fromUnit
+        actualFromUnit = fromUnit;
+      }
+      
+      // Apply conversion if needed
+      if (actualFromUnit !== "none" && toUnit !== "none" && actualFromUnit !== toUnit) {
+        finalValue = convertUnit(finalValue, actualFromUnit, toUnit);
+      }
+      
+      return { label: x.label, value: finalValue };
+    });
 
     if (!rows.length) {
       status.textContent = "No numeric values found in the selected value column.";
