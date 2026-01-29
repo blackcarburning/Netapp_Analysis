@@ -2385,6 +2385,29 @@
 
   el("chartSource").addEventListener("change", refreshChartColumns);
 
+  // Auto-refresh chart column dropdowns when data is pasted or typed into paste textareas
+  const pasteTextareaIds = [
+    "pasteAggShow", "pasteAggSpace", "pasteAggEfficiency",
+    "pasteVol", "pasteVolSpace", "pasteSnaps", "pasteEff",
+    "pasteQtree", "pasteLun", "pasteCifs"
+  ];
+
+  pasteTextareaIds.forEach(id => {
+    const textarea = el(id);
+    if (textarea) {
+      // Refresh on paste event
+      textarea.addEventListener("paste", () => {
+        setTimeout(refreshChartColumns, 100); // Small delay to allow paste to complete
+      });
+
+      // Refresh on input event (typing, cutting, etc.) with debounce
+      textarea.addEventListener("input", () => {
+        clearTimeout(textarea._refreshTimeout);
+        textarea._refreshTimeout = setTimeout(refreshChartColumns, 300);
+      });
+    }
+  });
+
   // Regenerate on settings change + persist UI settings
   const persistUiDebounced = (() => {
     let t = null;
