@@ -1730,7 +1730,8 @@
       return;
     }
     
-    const doc = new jsPDFLib();
+    try {
+      const doc = new jsPDFLib();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 14;
     let yPos = 20;
@@ -1996,16 +1997,16 @@
     }
     
     // === ADD TABLES IF AUTOTABLE IS AVAILABLE ===
-    if (doc.autoTable && aggShowData.rows.length > 0) {
+    if (doc.autoTable && aggSpaceData.rows.length > 0) {
       doc.addPage();
       doc.setFontSize(14);
       doc.text("Aggregates Detail", margin, 20);
       
       // Select key columns for the table
-      const tableCols = ["aggregate", "node", "size", "usedsize", "availsize", "percent-used", "state"];
-      const colIdxs = tableCols.map(c => findCol(aggShowData.headers, c)).filter(i => i !== -1);
-      const tableHeaders = colIdxs.map(i => aggShowData.headers[i]);
-      const tableData = aggShowData.rows.map(row => colIdxs.map(i => row[i] || ""));
+      const tableCols = ["aggregate", "node", "aggregate-size", "used-including-snapshot-reserve", "available-size", "percent-used"];
+      const colIdxs = tableCols.map(c => findCol(aggSpaceData.headers, c)).filter(i => i !== -1);
+      const tableHeaders = colIdxs.map(i => aggSpaceData.headers[i]);
+      const tableData = aggSpaceData.rows.map(row => colIdxs.map(i => row[i] || ""));
       
       if (tableHeaders.length > 0) {
         doc.autoTable({
@@ -2021,6 +2022,11 @@
     
     // Save the PDF
     doc.save("netapp_storage_report.pdf");
+    
+    } catch (error) {
+      console.error("PDF generation error:", error);
+      alert("Error generating PDF report: " + error.message);
+    }
   }
 
   // --- Offline file import into a textarea ---
@@ -2651,6 +2657,22 @@
   function isPlainObject(v) {
     return !!v && typeof v === "object" && !Array.isArray(v);
   }
+  
+  // Refresh all UI elements after importing JSON config
+  function refreshAllAfterImport() {
+    // Refresh unit badges if they exist
+    if (typeof updateAllUnitBadges === 'function') {
+      updateAllUnitBadges();
+    }
+    
+    // Trigger input events on all paste textareas to refresh any listeners
+    PASTE_TEXTAREA_IDS.forEach(id => {
+      const textarea = el(id);
+      if (textarea && textarea.value.trim()) {
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    });
+  }
 
   function filterToValidFields(key, list) {
     const valid = new Set((FIELD_CATALOG[key] || []).map(x => x.f));
@@ -2725,6 +2747,9 @@
     }
 
     genPuttyBlock();
+    
+    // Refresh all UI elements after import
+    refreshAllAfterImport();
   }
 
   async function importFieldConfigFromFile(file) {
