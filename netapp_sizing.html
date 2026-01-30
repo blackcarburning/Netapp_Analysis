@@ -2004,8 +2004,7 @@
       }
       if (usedCol !== -1) {
         totalUsed = sumColumnWithConversion(aggSpaceData.rows, usedCol);
-        addLineWithDesc("Total Used Space (incl. snapshots)", formatBytes(totalUsed), "Logical space consumed INCLUDING snapshot reserve and volume data.");
-        addDescription("This includes: volume data + snapshot copies + metadata");
+        addLineWithDesc("Total Used Space (Logical)", formatBytes(totalUsed), "Logical space consumed including snapshot reserve.");
       }
       if (physUsedCol !== -1) {
         physUsed = sumColumnWithConversion(aggSpaceData.rows, physUsedCol);
@@ -2073,8 +2072,8 @@
       addSectionHeader("Space Breakdown & Snapshots");
       
       if (totalUsed > 0) {
-        addLineWithDesc("Total Used (incl. snapshots)", formatBytes(totalUsed), 
-          "This value INCLUDES snapshot reserve. Use this for total space consumption.");
+        addLineWithDesc("Total Used (Logical)", formatBytes(totalUsed), 
+          "Logical space including snapshot reserve and volume data.");
       }
       
       if (volFootprints > 0) {
@@ -2095,7 +2094,6 @@
       // Add explanatory note about snapshots (plain text)
       yPos += 2;
       addDescription("Total Used includes volume data, snapshot copies, and metadata.");
-      addDescription("For backup planning, use the logical data size.");
       
       yPos += 6;
     }
@@ -2254,13 +2252,6 @@
         }, 160, 100);
       }
       
-      // Add backup planning note (plain text)
-      if (volLogicalUsed > 0) {
-        yPos += 2;
-        addDescription("For backup sizing, use Logical Data as your source data size.");
-        addDescription("This represents the actual data before storage efficiency is applied.");
-      }
-      
       yPos += 6;
     }
     
@@ -2390,6 +2381,73 @@
       addLineWithDesc("Total Shares", cifsData.rows.length, "Number of CIFS/SMB network file shares.");
       yPos += 6;
     }
+    
+    // === BACKUP PLANNING ===
+    addSectionHeader("Backup Planning");
+    
+    // Add main instruction
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text("For backup capacity planning, use the LOGICAL data size.", margin, yPos);
+    yPos += 8;
+    
+    // Add recommended backup size
+    if (totalUsed > 0) {
+      doc.setFont(undefined, 'bold');
+      doc.text(`Recommended backup source size: ${formatBytes(totalUsed)}`, margin, yPos);
+      yPos += 10;
+      doc.setFont(undefined, 'normal');
+    } else {
+      doc.text("Recommended backup source size: No data available", margin, yPos);
+      yPos += 10;
+    }
+    
+    // Add "Why use logical data?" section
+    doc.setFont(undefined, 'bold');
+    doc.text("Why use logical data?", margin, yPos);
+    yPos += 6;
+    doc.setFont(undefined, 'normal');
+    
+    // Add explanation paragraphs
+    const explanation1 = "Backups capture the logical data as seen by applications, not the physical on-disk representation. Storage efficiency features like deduplication and compression reduce physical storage but do not reduce the data that needs to be backed up.";
+    const lines1 = doc.splitTextToSize(explanation1, pageWidth - 2 * margin);
+    doc.text(lines1, margin, yPos);
+    yPos += lines1.length * 5 + 3;
+    
+    const explanation2 = "Logical data represents the actual application data before storage efficiency is applied. This is what backup software will read and transfer.";
+    const lines2 = doc.splitTextToSize(explanation2, pageWidth - 2 * margin);
+    doc.text(lines2, margin, yPos);
+    yPos += lines2.length * 5 + 3;
+    
+    const explanation3 = "Physical data represents the space consumed on disk after deduplication and compression. This is smaller than logical due to storage efficiency savings.";
+    const lines3 = doc.splitTextToSize(explanation3, pageWidth - 2 * margin);
+    doc.text(lines3, margin, yPos);
+    yPos += lines3.length * 5 + 6;
+    
+    // Add summary section
+    doc.setFont(undefined, 'bold');
+    doc.text("Summary:", margin, yPos);
+    yPos += 6;
+    doc.setFont(undefined, 'normal');
+    
+    if (totalUsed > 0) {
+      doc.text(`- Logical Used: ${formatBytes(totalUsed)} - Use this for backup sizing`, margin + 2, yPos);
+      yPos += 5;
+    }
+    
+    if (physUsed > 0) {
+      doc.text(`- Physical Used: ${formatBytes(physUsed)} - Actual disk consumption`, margin + 2, yPos);
+      yPos += 5;
+    }
+    
+    if (totalUsed > 0 && physUsed > 0) {
+      const savingsAmount = totalUsed - physUsed;
+      const savingsPercent = ((savingsAmount / totalUsed) * 100).toFixed(0);
+      doc.text(`- Efficiency Savings: ${formatBytes(savingsAmount)} (${savingsPercent}%)`, margin + 2, yPos);
+      yPos += 5;
+    }
+    
+    yPos += 6;
     
     // Save the PDF
     doc.save("netapp_storage_report.pdf");
