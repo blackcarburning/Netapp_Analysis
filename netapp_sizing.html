@@ -2256,6 +2256,54 @@
       yPos += 6;
     }
     
+    // === STORAGE EFFICIENCY BY AGGREGATE ===
+    // Display efficiency ratios for each aggregate separately (not averaged)
+    if (aggEffData.rows.length > 0) {
+      addSectionHeader("Storage Efficiency by Aggregate");
+      
+      // Find the column indices
+      const aggNameCol = findCol(aggEffData.headers, "aggregate");
+      const totalEffRatioCol = findCol(aggEffData.headers, "total-storage-efficiency-ratio");
+      const dataReductionRatioCol = findCol(aggEffData.headers, "total-data-reduction-efficiency-ratio-wo-snapshots");
+      
+      // Check if we have the required columns
+      if (aggNameCol !== -1 && (totalEffRatioCol !== -1 || dataReductionRatioCol !== -1)) {
+        // Loop through each aggregate and display its efficiency ratios
+        for (let i = 0; i < aggEffData.rows.length; i++) {
+          const row = aggEffData.rows[i];
+          const aggName = row[aggNameCol] || `Aggregate ${i + 1}`;
+          
+          // Add aggregate name
+          if (yPos > 265) {
+            doc.addPage();
+            yPos = 20;
+          }
+          doc.setFont(undefined, 'bold');
+          doc.text(`Aggregate: ${aggName}`, margin + 2, yPos);
+          yPos += 6;
+          doc.setFont(undefined, 'normal');
+          
+          // Add efficiency ratios with indentation
+          if (totalEffRatioCol !== -1 && row[totalEffRatioCol]) {
+            const effRatioValue = row[totalEffRatioCol];
+            addLine("  - With Snapshots", effRatioValue);
+          }
+          
+          if (dataReductionRatioCol !== -1 && row[dataReductionRatioCol]) {
+            const dataRedRatioValue = row[dataReductionRatioCol];
+            addLine("  - Without Snapshots", dataRedRatioValue);
+          }
+          
+          yPos += 2; // Add small space between aggregates
+        }
+        
+        yPos += 4;
+      } else {
+        addDescription("Storage efficiency data columns not found.");
+        yPos += 6;
+      }
+    }
+    
     // === VOLUMES SUMMARY ===
     addSectionHeader("Volumes Summary");
     
