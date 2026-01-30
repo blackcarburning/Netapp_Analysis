@@ -1921,6 +1921,7 @@
     }
     
     // Find column by EXACT match only - no contains fallback
+    // Accepts multiple candidate names to try in order (e.g., field name, then friendly name)
     function findExactMatchCol(headers, ...candidates) {
       for (const candidate of candidates) {
         if (!candidate) continue;
