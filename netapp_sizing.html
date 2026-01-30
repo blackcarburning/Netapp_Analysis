@@ -31,3 +31,38 @@
       doc.text("- LUN Used Space: 0 (no LUNs configured)", margin + 2, yPos);
     }
     yPos += 8;
+    
+    // Check for page overflow
+    if (yPos > 220) {
+      doc.addPage();
+      yPos = 20;
+    }
+    
+    doc.setFont(undefined, 'bold');
+    doc.text("Why this calculation?", margin, yPos);
+    yPos += 6;
+    doc.setFont(undefined, 'normal');
+    
+    const whyText = "Backup software accesses data through shares (CIFS/NFS) or LUNs, not directly from the NetApp. Only the consumed data in volumes is accessible for backup.";
+    const whyLines = doc.splitTextToSize(whyText, pageWidth - 2 * margin);
+    doc.text(whyLines, margin, yPos);
+    yPos += whyLines.length * 5 + 5;
+    
+    doc.text("What is NOT included:", margin, yPos);
+    yPos += 5;
+    doc.text("- Snapshot copies (internal to NetApp, not accessible via shares)", margin + 2, yPos);
+    yPos += 5;
+    doc.text("- Aggregate metadata", margin + 2, yPos);
+    yPos += 5;
+    doc.text("- Snapshot reserve space", margin + 2, yPos);
+    yPos += 5;
+    doc.text("- Free space in volumes", margin + 2, yPos);
+    yPos += 8;
+    
+    // Add clarifying note about aggregate vs volume data
+    if (totalUsed > 0 && backupSourceSize > 0 && totalUsed !== backupSourceSize) {
+      const noteText = `Note: The aggregate "Total Used" of ${formatBytes(totalUsed)} includes snapshots and metadata which cannot be backed up externally. Use the volume-level used space (${formatBytes(backupSourceSize)}) for backup planning.`;
+      const noteLines = doc.splitTextToSize(noteText, pageWidth - 2 * margin);
+      doc.text(noteLines, margin, yPos);
+      yPos += noteLines.length * 5;
+    }
