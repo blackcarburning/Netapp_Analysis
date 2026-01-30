@@ -2005,7 +2005,7 @@
       if (usedCol !== -1) {
         totalUsed = sumColumnWithConversion(aggSpaceData.rows, usedCol);
         addLineWithDesc("Total Used Space (incl. snapshots)", formatBytes(totalUsed), "Logical space consumed INCLUDING snapshot reserve and volume data.");
-        addDescription("⚠️ This includes: volume data + snapshot copies + metadata");
+        addDescription("This includes: volume data + snapshot copies + metadata");
       }
       if (physUsedCol !== -1) {
         physUsed = sumColumnWithConversion(aggSpaceData.rows, physUsedCol);
@@ -2092,21 +2092,27 @@
           "Percentage of aggregate reserved for snapshots.");
       }
       
-      // Add explanatory callout about snapshots
-      addCallout("Snapshot Space Note", 
-        `"Total Used" (used-including-snapshot-reserve) includes both active data and snapshot reserve. ` +
-        `For backup planning, consider that snapshots may add 10-30% overhead depending on change rate. ` +
-        `The "Volume Footprints" field shows the space used by actual volume data, while "Snapshot Space" ` +
-        `shows the space consumed by snapshot copies.`);
+      // Add explanatory note about snapshots (plain text)
+      yPos += 2;
+      addDescription("Total Used includes volume data, snapshot copies, and metadata.");
+      addDescription("For backup planning, use the logical data size.");
       
       yPos += 6;
     }
     
     // === STORAGE EFFICIENCY & DATA REDUCTION ===
+    // Try to get efficiency data from aggEffData first, then fallback to calculating from aggSpaceData
+    let hasEfficiencyData = false;
+    let storageEffRatio = "N/A";
+    let dataReductionRatio = "N/A";
+    let volLogicalUsed = 0;
+    let volPhysicalUsed = 0;
+    let dedupSavedRatio = "N/A";
+    let compSavedRatio = "N/A";
+    let isEstimated = false;
+    
     if (aggEffData.rows.length > 0) {
-      addSectionHeader("Storage Efficiency & Data Reduction");
-      
-      // Find relevant columns
+      // Try to get data from efficiency paste
       const ratioCol = findCol(aggEffData.headers, "total-storage-efficiency-ratio");
       const dataReductionCol = findCol(aggEffData.headers, "total-data-reduction-efficiency-ratio-wo-snapshots");
       const volLogicalCol = findCol(aggEffData.headers, "volume-logical-used");
@@ -2114,15 +2120,7 @@
       const dedupRatioCol = findCol(aggEffData.headers, "volume-efficiency-saved-ratio");
       const compRatioCol = findCol(aggEffData.headers, "volume-compression-saved-ratio");
       
-      // Get values from first row (or aggregate across rows if needed)
-      let storageEffRatio = "N/A";
-      let dataReductionRatio = "N/A";
-      let volLogicalUsed = 0;
-      let volPhysicalUsed = 0;
-      let dedupSavedRatio = "N/A";
-      let compSavedRatio = "N/A";
-      
-      // For multiple aggregates, we'll sum the logical and physical used
+      // For multiple aggregates, sum the logical and physical used
       for (let i = 0; i < aggEffData.rows.length; i++) {
         const row = aggEffData.rows[i];
         
@@ -2130,9 +2128,11 @@
         if (i === 0) {
           if (ratioCol !== -1 && row[ratioCol]) {
             storageEffRatio = row[ratioCol];
+            hasEfficiencyData = true;
           }
           if (dataReductionCol !== -1 && row[dataReductionCol]) {
             dataReductionRatio = row[dataReductionCol];
+            hasEfficiencyData = true;
           }
           if (dedupRatioCol !== -1 && row[dedupRatioCol]) {
             dedupSavedRatio = row[dedupRatioCol];
@@ -2156,12 +2156,33 @@
           }
         }
       }
+    } else if (aggSpaceData.rows.length > 0 && totalUsed > 0 && physUsed > 0) {
+      // Fallback: calculate efficiency from aggSpaceData
+      volLogicalUsed = totalUsed;
+      volPhysicalUsed = physUsed;
+      const efficiencyRatio = (totalUsed / physUsed).toFixed(2);
+      storageEffRatio = `${efficiencyRatio}:1`;
+      hasEfficiencyData = true;
+      isEstimated = true;
+    }
+    
+    // Only show storage efficiency section if we have data
+    if (hasEfficiencyData || volLogicalUsed > 0 || volPhysicalUsed > 0) {
+      addSectionHeader("Storage Efficiency & Data Reduction");
       
-      // Display metrics
-      addLineWithDesc("Storage Efficiency Ratio", storageEffRatio, "Overall ratio of logical to physical data.");
+      if (isEstimated) {
+        addDescription("Efficiency ratio estimated from used space data.");
+      }
       
-      addLineWithDesc("Data Reduction Ratio (excl. snapshots)", dataReductionRatio, 
-        "Data reduction from deduplication and compression.");
+      // Display metrics only if they have values
+      if (storageEffRatio !== "N/A") {
+        addLineWithDesc("Storage Efficiency Ratio", storageEffRatio, "Overall ratio of logical to physical data.");
+      }
+      
+      if (dataReductionRatio !== "N/A") {
+        addLineWithDesc("Data Reduction Ratio (excl. snapshots)", dataReductionRatio, 
+          "Data reduction from deduplication and compression.");
+      }
       
       if (volLogicalUsed > 0) {
         addLineWithDesc("Logical Data (Backup Source Size)", formatBytes(volLogicalUsed), 
@@ -2233,10 +2254,11 @@
         }, 160, 100);
       }
       
-      // Add backup planning callout
+      // Add backup planning note (plain text)
       if (volLogicalUsed > 0) {
-        addCallout("Backup Planning Note", 
-          `For backup sizing, use "Logical Data" (volume-logical-used) as your source data size. This represents the actual data before storage efficiency is applied. Current logical data: ${formatBytes(volLogicalUsed)}`);
+        yPos += 2;
+        addDescription("For backup sizing, use Logical Data as your source data size.");
+        addDescription("This represents the actual data before storage efficiency is applied.");
       }
       
       yPos += 6;
@@ -2367,30 +2389,6 @@
       addSectionHeader("CIFS/SMB Shares Summary");
       addLineWithDesc("Total Shares", cifsData.rows.length, "Number of CIFS/SMB network file shares.");
       yPos += 6;
-    }
-    
-    // === ADD TABLES IF AUTOTABLE IS AVAILABLE ===
-    if (doc.autoTable && aggSpaceData.rows.length > 0) {
-      doc.addPage();
-      doc.setFontSize(14);
-      doc.text("Aggregates Detail", margin, 20);
-      
-      // Select key columns for the table
-      const tableCols = ["aggregate", "node", "aggregate-size", "used-including-snapshot-reserve", "available-size", "percent-used"];
-      const colIdxs = tableCols.map(c => findCol(aggSpaceData.headers, c)).filter(i => i !== -1);
-      const tableHeaders = colIdxs.map(i => aggSpaceData.headers[i]);
-      const tableData = aggSpaceData.rows.map(row => colIdxs.map(i => row[i] || ""));
-      
-      if (tableHeaders.length > 0) {
-        doc.autoTable({
-          startY: 28,
-          head: [tableHeaders],
-          body: tableData,
-          theme: 'grid',
-          styles: { fontSize: 8 },
-          headStyles: { fillColor: [30, 50, 100] }
-        });
-      }
     }
     
     // Save the PDF
