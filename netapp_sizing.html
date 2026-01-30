@@ -1807,7 +1807,7 @@
     
     // Helper to find column by exact name match (case-insensitive)
     function findExactCol(headers, exactName) {
-      return headers.findIndex(h => h.trim().toLowerCase() === exactName.toLowerCase());
+      return headers.findIndex(h => h.trim().toLowerCase() === exactName.trim().toLowerCase());
     }
     
     // Helper to sum numeric column WITH proper unit conversion
