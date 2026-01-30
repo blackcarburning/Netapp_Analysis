@@ -1760,6 +1760,96 @@
       yPos += 6;
     }
     
+    // Helper function to add description line (italic, smaller font, gray)
+    function addDescription(text) {
+      if (yPos > 275) {
+        doc.addPage();
+        yPos = 20;
+      }
+      doc.setFontSize(9);
+      doc.setFont(undefined, 'italic');
+      doc.setTextColor(100, 100, 100);
+      doc.text(text, margin + 2, yPos);
+      yPos += 5;
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(0, 0, 0);
+    }
+    
+    // Helper function to add line with description
+    function addLineWithDesc(label, value, description) {
+      addLine(label, value);
+      if (description) {
+        addDescription(description);
+      }
+    }
+    
+    // Helper function to create and embed a chart
+    function addChart(chartConfig, width = 160, height = 100) {
+      if (typeof Chart === 'undefined') {
+        console.warn("Chart.js not available, skipping chart");
+        return;
+      }
+      
+      try {
+        // Create an offscreen canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = width * 2; // Higher resolution
+        canvas.height = height * 2;
+        const ctx = canvas.getContext('2d');
+        
+        // Create chart
+        const chart = new Chart(ctx, chartConfig);
+        
+        // Convert to image and add to PDF
+        const imgData = canvas.toDataURL('image/png');
+        
+        // Check if we need a new page
+        if (yPos + height > 280) {
+          doc.addPage();
+          yPos = 20;
+        }
+        
+        doc.addImage(imgData, 'PNG', margin, yPos, width, height);
+        yPos += height + 8;
+        
+        // Cleanup
+        chart.destroy();
+      } catch (error) {
+        console.error("Error creating chart:", error);
+      }
+    }
+    
+    // Helper function to add a callout box
+    function addCallout(title, text) {
+      if (yPos > 260) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      // Draw background box
+      doc.setFillColor(240, 248, 255);
+      doc.setDrawColor(70, 130, 180);
+      doc.rect(margin, yPos - 4, pageWidth - 2 * margin, 18, 'FD');
+      
+      // Add title with icon
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(70, 130, 180);
+      doc.text(`📊 ${title}`, margin + 2, yPos + 2);
+      yPos += 8;
+      
+      // Add text
+      doc.setFont(undefined, 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(0, 0, 0);
+      const lines = doc.splitTextToSize(text, pageWidth - 2 * margin - 4);
+      doc.text(lines, margin + 2, yPos);
+      yPos += lines.length * 4 + 8;
+      
+      doc.setTextColor(0, 0, 0);
+    }
+    
     // Helper to parse pasted data
     function parseData(textareaId) {
       const textarea = el(textareaId);
@@ -1856,43 +1946,203 @@
     
     // Count aggregates
     const aggCount = aggSpaceData.rows.length || aggEffData.rows.length;
-    addLine("Total Aggregates", aggCount || "No data");
+    addLineWithDesc("Total Aggregates", aggCount || "No data", "Number of storage aggregates in the cluster.");
     
     // Aggregate sizes from show-space
+    let totalSize = 0, totalUsed = 0, physUsed = 0;
     if (aggSpaceData.rows.length > 0) {
       const sizeCol = findExactCol(aggSpaceData.headers, "Size");
       const usedCol = findExactCol(aggSpaceData.headers, "Total Used");
       const physUsedCol = findExactCol(aggSpaceData.headers, "Total Physical Used Size");
       
       if (sizeCol !== -1) {
-        const totalSize = sumColumnWithConversion(aggSpaceData.rows, sizeCol);
-        addLine("Total Aggregate Capacity", formatBytes(totalSize));
+        totalSize = sumColumnWithConversion(aggSpaceData.rows, sizeCol);
+        addLineWithDesc("Total Aggregate Capacity", formatBytes(totalSize), "Total raw storage capacity of all aggregates.");
       }
       if (usedCol !== -1) {
-        const totalUsed = sumColumnWithConversion(aggSpaceData.rows, usedCol);
-        addLine("Total Used Space", formatBytes(totalUsed));
+        totalUsed = sumColumnWithConversion(aggSpaceData.rows, usedCol);
+        addLineWithDesc("Total Used Space", formatBytes(totalUsed), "Logical space consumed including snapshot reserve.");
       }
       if (physUsedCol !== -1) {
-        const physUsed = sumColumnWithConversion(aggSpaceData.rows, physUsedCol);
-        addLine("Total Physical Used", formatBytes(physUsed));
+        physUsed = sumColumnWithConversion(aggSpaceData.rows, physUsedCol);
+        addLineWithDesc("Total Physical Used", formatBytes(physUsed), "Physical space on disk after storage efficiency savings.");
       }
-    }
-    
-    // Efficiency ratios
-    if (aggEffData.rows.length > 0) {
-      const ratioCol = findCol(aggEffData.headers, "total-storage-efficiency-ratio");
-      if (ratioCol !== -1 && aggEffData.rows[0][ratioCol]) {
-        addLine("Storage Efficiency Ratio (first aggr)", aggEffData.rows[0][ratioCol]);
+      
+      // Add aggregate capacity chart if we have data
+      if (totalSize > 0 && totalUsed > 0) {
+        const availSpace = totalSize - totalUsed;
+        addChart({
+          type: 'pie',
+          data: {
+            labels: ['Used Space', 'Available Space'],
+            datasets: [{
+              data: [totalUsed, availSpace > 0 ? availSpace : 0],
+              backgroundColor: ['#FF6384', '#36A2EB']
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              title: {
+                display: true,
+                text: 'Aggregate Capacity Breakdown'
+              },
+              legend: {
+                position: 'bottom'
+              }
+            }
+          }
+        }, 160, 100);
       }
     }
     
     yPos += 6;
     
+    // === STORAGE EFFICIENCY & DATA REDUCTION ===
+    if (aggEffData.rows.length > 0) {
+      addSectionHeader("Storage Efficiency & Data Reduction");
+      
+      // Find relevant columns
+      const ratioCol = findCol(aggEffData.headers, "total-storage-efficiency-ratio");
+      const dataReductionCol = findCol(aggEffData.headers, "total-data-reduction-efficiency-ratio-wo-snapshots");
+      const volLogicalCol = findCol(aggEffData.headers, "volume-logical-used");
+      const volPhysicalCol = findCol(aggEffData.headers, "volume-physical-used");
+      const dedupRatioCol = findCol(aggEffData.headers, "volume-efficiency-saved-ratio");
+      const compRatioCol = findCol(aggEffData.headers, "volume-compression-saved-ratio");
+      
+      // Get values from first row (or aggregate across rows if needed)
+      let storageEffRatio = "N/A";
+      let dataReductionRatio = "N/A";
+      let volLogicalUsed = 0;
+      let volPhysicalUsed = 0;
+      let dedupSavedRatio = "N/A";
+      let compSavedRatio = "N/A";
+      
+      // For multiple aggregates, we'll sum the logical and physical used
+      for (let i = 0; i < aggEffData.rows.length; i++) {
+        const row = aggEffData.rows[i];
+        
+        // Get ratio from first row
+        if (i === 0) {
+          if (ratioCol !== -1 && row[ratioCol]) {
+            storageEffRatio = row[ratioCol];
+          }
+          if (dataReductionCol !== -1 && row[dataReductionCol]) {
+            dataReductionRatio = row[dataReductionCol];
+          }
+          if (dedupRatioCol !== -1 && row[dedupRatioCol]) {
+            dedupSavedRatio = row[dedupRatioCol];
+          }
+          if (compRatioCol !== -1 && row[compRatioCol]) {
+            compSavedRatio = row[compRatioCol];
+          }
+        }
+        
+        // Sum logical and physical used
+        if (volLogicalCol !== -1) {
+          const parsed = parseOntapNumber(row[volLogicalCol]);
+          if (Number.isFinite(parsed.value)) {
+            volLogicalUsed += parsed.value;
+          }
+        }
+        if (volPhysicalCol !== -1) {
+          const parsed = parseOntapNumber(row[volPhysicalCol]);
+          if (Number.isFinite(parsed.value)) {
+            volPhysicalUsed += parsed.value;
+          }
+        }
+      }
+      
+      // Display metrics
+      addLineWithDesc("Storage Efficiency Ratio", storageEffRatio, "Overall ratio of logical to physical data.");
+      
+      addLineWithDesc("Data Reduction Ratio (excl. snapshots)", dataReductionRatio, 
+        "Data reduction from deduplication and compression.");
+      
+      if (volLogicalUsed > 0) {
+        addLineWithDesc("Logical Data (Backup Source Size)", formatBytes(volLogicalUsed), 
+          "Total logical data size - use this for backup capacity planning.");
+      }
+      
+      if (volPhysicalUsed > 0) {
+        addLineWithDesc("Physical Data (On Disk)", formatBytes(volPhysicalUsed), 
+          "Actual space consumed after storage efficiency.");
+      }
+      
+      // Calculate savings
+      if (volLogicalUsed > 0 && volPhysicalUsed > 0) {
+        const spaceSaved = volLogicalUsed - volPhysicalUsed;
+        const savingsPercent = ((spaceSaved / volLogicalUsed) * 100).toFixed(1);
+        addLine("Total Space Saved", `${formatBytes(spaceSaved)} (${savingsPercent}%)`);
+      }
+      
+      if (dedupSavedRatio !== "N/A") {
+        addLine("Space Saved by Deduplication", dedupSavedRatio);
+      }
+      
+      if (compSavedRatio !== "N/A") {
+        addLine("Space Saved by Compression", compSavedRatio);
+      }
+      
+      // Add chart showing logical vs physical storage
+      if (volLogicalUsed > 0 && volPhysicalUsed > 0) {
+        yPos += 4;
+        addChart({
+          type: 'bar',
+          data: {
+            labels: ['Storage Usage'],
+            datasets: [
+              {
+                label: 'Logical Data',
+                data: [volLogicalUsed],
+                backgroundColor: '#FF6384'
+              },
+              {
+                label: 'Physical Data',
+                data: [volPhysicalUsed],
+                backgroundColor: '#36A2EB'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              title: {
+                display: true,
+                text: 'Logical vs Physical Storage'
+              },
+              legend: {
+                position: 'bottom'
+              }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: {
+                  callback: function(value) {
+                    return formatBytes(value);
+                  }
+                }
+              }
+            }
+          }
+        }, 160, 100);
+      }
+      
+      // Add backup planning callout
+      if (volLogicalUsed > 0) {
+        addCallout("Backup Planning Note", 
+          `For backup sizing, use "Logical Data" (volume-logical-used) as your source data size. This represents the actual data before storage efficiency is applied. Current logical data: ${formatBytes(volLogicalUsed)}`);
+      }
+      
+      yPos += 6;
+    }
+    
     // === VOLUMES SUMMARY ===
     addSectionHeader("Volumes Summary");
     
     const volData = parseData("pasteVol");
-    addLine("Total Volumes", volData.rows.length || "No data");
+    addLineWithDesc("Total Volumes", volData.rows.length || "No data", "Number of volumes in the cluster.");
     
     if (volData.rows.length > 0) {
       const sizeCol = findCol(volData.headers, "size");
@@ -1902,15 +2152,15 @@
       
       if (sizeCol !== -1) {
         const totalSize = sumColumnWithConversion(volData.rows, sizeCol);
-        addLine("Total Volume Capacity", formatBytes(totalSize));
+        addLineWithDesc("Total Volume Capacity", formatBytes(totalSize), "Total provisioned capacity of all volumes.");
       }
       if (usedCol !== -1) {
         const totalUsed = sumColumnWithConversion(volData.rows, usedCol);
-        addLine("Total Used Space", formatBytes(totalUsed));
+        addLineWithDesc("Total Used Space", formatBytes(totalUsed), "Total space used across all volumes.");
       }
       if (availCol !== -1) {
         const totalAvail = sumColumnWithConversion(volData.rows, availCol);
-        addLine("Total Available Space", formatBytes(totalAvail));
+        addLineWithDesc("Total Available Space", formatBytes(totalAvail), "Total available space across all volumes.");
       }
       
       // Count by type if available
@@ -1933,18 +2183,18 @@
     const volSpaceData = parseData("pasteVolSpace");
     if (volSpaceData.rows.length > 0) {
       addSectionHeader("Volume Space Details");
-      addLine("Volumes with space data", volSpaceData.rows.length);
+      addLineWithDesc("Volumes with space data", volSpaceData.rows.length, "Number of volumes with detailed space information.");
       
       const logUsedCol = findCol(volSpaceData.headers, "logical-used");
       const physUsedCol = findCol(volSpaceData.headers, "physical-used");
       
       if (logUsedCol !== -1) {
         const totalLogical = sumColumnWithConversion(volSpaceData.rows, logUsedCol);
-        addLine("Total Logical Used", formatBytes(totalLogical));
+        addLineWithDesc("Total Logical Used", formatBytes(totalLogical), "Logical space used before storage efficiency.");
       }
       if (physUsedCol !== -1) {
         const totalPhysical = sumColumnWithConversion(volSpaceData.rows, physUsedCol);
-        addLine("Total Physical Used", formatBytes(totalPhysical));
+        addLineWithDesc("Total Physical Used", formatBytes(totalPhysical), "Physical space after deduplication and compression.");
       }
       yPos += 6;
     }
@@ -1953,12 +2203,12 @@
     const snapData = parseData("pasteSnaps");
     if (snapData.rows.length > 0) {
       addSectionHeader("Snapshots Summary");
-      addLine("Total Snapshots", snapData.rows.length);
+      addLineWithDesc("Total Snapshots", snapData.rows.length, "Number of snapshot copies in the system.");
       
       const sizeCol = findCol(snapData.headers, "size");
       if (sizeCol !== -1) {
         const totalSize = sumColumnWithConversion(snapData.rows, sizeCol);
-        addLine("Total Snapshot Size", formatBytes(totalSize));
+        addLineWithDesc("Total Snapshot Size", formatBytes(totalSize), "Total space consumed by snapshot copies.");
       }
       yPos += 6;
     }
@@ -1967,7 +2217,7 @@
     const effData = parseData("pasteEff");
     if (effData.rows.length > 0) {
       addSectionHeader("Volume Efficiency Summary");
-      addLine("Volumes with efficiency data", effData.rows.length);
+      addLineWithDesc("Volumes with efficiency data", effData.rows.length, "Number of volumes with efficiency information.");
       
       const stateCol = findCol(effData.headers, "state");
       if (stateCol !== -1) {
@@ -1983,7 +2233,7 @@
     const qtreeData = parseData("pasteQtree");
     if (qtreeData.rows.length > 0) {
       addSectionHeader("Qtrees Summary");
-      addLine("Total Qtrees", qtreeData.rows.length);
+      addLineWithDesc("Total Qtrees", qtreeData.rows.length, "Number of qtrees (quota trees) in the system.");
       yPos += 6;
     }
     
@@ -1991,18 +2241,18 @@
     const lunData = parseData("pasteLun");
     if (lunData.rows.length > 0) {
       addSectionHeader("LUNs Summary");
-      addLine("Total LUNs", lunData.rows.length);
+      addLineWithDesc("Total LUNs", lunData.rows.length, "Number of LUNs (Logical Unit Numbers) for block storage.");
       
       const sizeCol = findCol(lunData.headers, "size");
       const usedCol = findCol(lunData.headers, "size-used");
       
       if (sizeCol !== -1) {
         const totalSize = sumColumnWithConversion(lunData.rows, sizeCol);
-        addLine("Total LUN Capacity", formatBytes(totalSize));
+        addLineWithDesc("Total LUN Capacity", formatBytes(totalSize), "Total provisioned LUN capacity.");
       }
       if (usedCol !== -1) {
         const totalUsed = sumColumnWithConversion(lunData.rows, usedCol);
-        addLine("Total LUN Used", formatBytes(totalUsed));
+        addLineWithDesc("Total LUN Used", formatBytes(totalUsed), "Total space used by LUNs.");
       }
       yPos += 6;
     }
@@ -2011,7 +2261,7 @@
     const cifsData = parseData("pasteCifs");
     if (cifsData.rows.length > 0) {
       addSectionHeader("CIFS/SMB Shares Summary");
-      addLine("Total Shares", cifsData.rows.length);
+      addLineWithDesc("Total Shares", cifsData.rows.length, "Number of CIFS/SMB network file shares.");
       yPos += 6;
     }
     
