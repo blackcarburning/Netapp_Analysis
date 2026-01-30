@@ -2261,6 +2261,9 @@
     const volData = parseData("pasteVol");
     addLineWithDesc("Total Volumes", volData.rows.length || "No data", "Number of volumes in the cluster.");
     
+    // Store volume used space for backup planning calculation
+    let volUsedSpace = 0;
+    
     if (volData.rows.length > 0) {
       const sizeCol = findCol(volData.headers, "size");
       const usedCol = findCol(volData.headers, "used");
@@ -2273,6 +2276,7 @@
       }
       if (usedCol !== -1) {
         const totalUsed = sumColumnWithConversion(volData.rows, usedCol);
+        volUsedSpace = totalUsed; // Store for backup planning
         addLineWithDesc("Total Used Space (Logical)", formatBytes(totalUsed), "Logical space used across all volumes.");
       }
       if (availCol !== -1) {
@@ -2356,6 +2360,9 @@
     
     // === LUNS SUMMARY ===
     const lunData = parseData("pasteLun");
+    let lunUsedSpace = 0;
+    const lunCount = lunData.rows.length;
+    
     if (lunData.rows.length > 0) {
       addSectionHeader("LUNs Summary");
       addLineWithDesc("Total LUNs", lunData.rows.length, "Number of LUNs (Logical Unit Numbers) for block storage.");
@@ -2369,6 +2376,7 @@
       }
       if (usedCol !== -1) {
         const totalUsed = sumColumnWithConversion(lunData.rows, usedCol);
+        lunUsedSpace = totalUsed; // Store for backup planning
         addLineWithDesc("Total LUN Used (Logical)", formatBytes(totalUsed), "Logical space used by LUNs.");
       }
       yPos += 6;
@@ -2385,22 +2393,26 @@
     // === BACKUP PLANNING ===
     addSectionHeader("Backup Planning");
     
+    // Calculate backup source size using volume-level data, not aggregate data
+    const backupSourceSize = volUsedSpace + lunUsedSpace;
+    
     // Add main instruction
     doc.setFontSize(10);
-    doc.setFont(undefined, 'normal');
-    doc.text("For backup capacity planning, use the LOGICAL data size.", margin, yPos);
+    doc.setFont(undefined, 'bold');
+    doc.text(`Total Data to Backup: ${formatBytes(backupSourceSize)}`, margin, yPos);
     yPos += 8;
+    doc.setFont(undefined, 'normal');
     
-    // Add recommended backup size
-    if (totalUsed > 0) {
-      doc.setFont(undefined, 'bold');
-      doc.text(`Recommended backup source size: ${formatBytes(totalUsed)}`, margin, yPos);
-      yPos += 10;
-      doc.setFont(undefined, 'normal');
+    doc.text("This is calculated from:", margin, yPos);
+    yPos += 5;
+    doc.text(`- Volume Used Space: ${formatBytes(volUsedSpace)} (from volume show data)`, margin + 2, yPos);
+    yPos += 5;
+    if (lunCount > 0) {
+      doc.text(`- LUN Used Space: ${formatBytes(lunUsedSpace)}`, margin + 2, yPos);
     } else {
-      doc.text("Recommended backup source size: No data available", margin, yPos);
-      yPos += 10;
+      doc.text("- LUN Used Space: 0 TB (no LUNs configured)", margin + 2, yPos);
     }
+    yPos += 8;
     
     // Check for page overflow before long section
     if (yPos > 220) {
@@ -2408,55 +2420,40 @@
       yPos = 20;
     }
     
-    // Add "Why use logical data?" section
     doc.setFont(undefined, 'bold');
-    doc.text("Why use logical data?", margin, yPos);
-    yPos += 6;
+    doc.text("Why this calculation?", margin, yPos);
+    yPos += 5;
     doc.setFont(undefined, 'normal');
+    const whyText = "Backup software accesses data through shares (CIFS/NFS) or LUNs, not directly from the NetApp. Only the consumed data in volumes is accessible for backup.";
+    const whyLines = doc.splitTextToSize(whyText, pageWidth - 2 * margin);
+    doc.text(whyLines, margin, yPos);
+    yPos += whyLines.length * 5 + 5;
     
-    // Add explanation paragraphs
-    const explanation1 = "Backups capture the logical data as seen by applications, not the physical on-disk representation. Storage efficiency features like deduplication and compression reduce physical storage but do not reduce the data that needs to be backed up.";
-    const lines1 = doc.splitTextToSize(explanation1, pageWidth - 2 * margin);
-    doc.text(lines1, margin, yPos);
-    yPos += lines1.length * 5 + 3;
+    doc.setFont(undefined, 'bold');
+    doc.text("What is NOT included:", margin, yPos);
+    yPos += 5;
+    doc.setFont(undefined, 'normal');
+    doc.text("- Snapshot copies (internal to NetApp, not accessible via shares)", margin + 2, yPos);
+    yPos += 5;
+    doc.text("- Aggregate metadata", margin + 2, yPos);
+    yPos += 5;
+    doc.text("- Snapshot reserve space", margin + 2, yPos);
+    yPos += 5;
+    doc.text("- Free space in volumes", margin + 2, yPos);
+    yPos += 8;
     
-    const explanation2 = "Logical data represents the actual application data before storage efficiency is applied. This is what backup software will read and transfer.";
-    const lines2 = doc.splitTextToSize(explanation2, pageWidth - 2 * margin);
-    doc.text(lines2, margin, yPos);
-    yPos += lines2.length * 5 + 3;
-    
-    const explanation3 = "Physical data represents the space consumed on disk after deduplication and compression. This is smaller than logical due to storage efficiency savings.";
-    const lines3 = doc.splitTextToSize(explanation3, pageWidth - 2 * margin);
-    doc.text(lines3, margin, yPos);
-    yPos += lines3.length * 5 + 6;
-    
-    // Check for page overflow before summary
+    // Check for page overflow before note
     if (yPos > 250) {
       doc.addPage();
       yPos = 20;
     }
     
-    // Add summary section
-    doc.setFont(undefined, 'bold');
-    doc.text("Summary:", margin, yPos);
-    yPos += 6;
-    doc.setFont(undefined, 'normal');
-    
-    if (totalUsed > 0) {
-      doc.text(`- Logical Used: ${formatBytes(totalUsed)} - Use this for backup sizing`, margin + 2, yPos);
-      yPos += 5;
-    }
-    
-    if (physUsed > 0) {
-      doc.text(`- Physical Used: ${formatBytes(physUsed)} - Actual disk consumption`, margin + 2, yPos);
-      yPos += 5;
-    }
-    
-    if (totalUsed > 0 && physUsed > 0 && totalUsed >= physUsed) {
-      const savingsAmount = totalUsed - physUsed;
-      const savingsPercent = ((savingsAmount / totalUsed) * 100).toFixed(0);
-      doc.text(`- Efficiency Savings: ${formatBytes(savingsAmount)} (${savingsPercent}%)`, margin + 2, yPos);
-      yPos += 5;
+    // Clarify the difference between aggregate and volume data
+    if (totalUsed > 0 && totalUsed !== backupSourceSize) {
+      const noteText = `Note: The aggregate "Total Used" of ${formatBytes(totalUsed)} includes snapshots and metadata which cannot be backed up externally. Use the volume-level used space (${formatBytes(backupSourceSize)}) for backup planning.`;
+      const noteLines = doc.splitTextToSize(noteText, pageWidth - 2 * margin);
+      doc.text(noteLines, margin, yPos);
+      yPos += noteLines.length * 5;
     }
     
     yPos += 6;
