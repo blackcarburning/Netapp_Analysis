@@ -1805,6 +1805,11 @@
       return -1;
     }
     
+    // Helper to find column by exact name match (case-insensitive)
+    function findExactCol(headers, exactName) {
+      return headers.findIndex(h => h.trim().toLowerCase() === exactName.trim().toLowerCase());
+    }
+    
     // Helper to sum numeric column WITH proper unit conversion
     function sumColumnWithConversion(rows, colIdx) {
       if (colIdx === -1) return 0;
@@ -1855,9 +1860,9 @@
     
     // Aggregate sizes from show-space
     if (aggSpaceData.rows.length > 0) {
-      const sizeCol = findCol(aggSpaceData.headers, "aggregate-size", "size");
-      const usedCol = findCol(aggSpaceData.headers, "used-including-snapshot-reserve", "total-used", "used");
-      const physUsedCol = findCol(aggSpaceData.headers, "physical-used");
+      const sizeCol = findExactCol(aggSpaceData.headers, "Size");
+      const usedCol = findExactCol(aggSpaceData.headers, "Total Used");
+      const physUsedCol = findExactCol(aggSpaceData.headers, "Total Physical Used Size");
       
       if (sizeCol !== -1) {
         const totalSize = sumColumnWithConversion(aggSpaceData.rows, sizeCol);
