@@ -2273,7 +2273,7 @@
       }
       if (usedCol !== -1) {
         const totalUsed = sumColumnWithConversion(volData.rows, usedCol);
-        addLineWithDesc("Total Used Space", formatBytes(totalUsed), "Total space used across all volumes.");
+        addLineWithDesc("Total Used Space (Logical)", formatBytes(totalUsed), "Logical space used across all volumes.");
       }
       if (availCol !== -1) {
         const totalAvail = sumColumnWithConversion(volData.rows, availCol);
@@ -2369,7 +2369,7 @@
       }
       if (usedCol !== -1) {
         const totalUsed = sumColumnWithConversion(lunData.rows, usedCol);
-        addLineWithDesc("Total LUN Used", formatBytes(totalUsed), "Total space used by LUNs.");
+        addLineWithDesc("Total LUN Used (Logical)", formatBytes(totalUsed), "Logical space used by LUNs.");
       }
       yPos += 6;
     }
