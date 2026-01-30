@@ -1922,17 +1922,43 @@
     
     // Helper to find column using FIELD_CATALOG to try both field name and friendly name
     function findColWithCatalog(headers, fieldName, catalogKey) {
-      // First, try the field name directly using findCol
-      const directMatch = findCol(headers, fieldName);
-      if (directMatch !== -1) return directMatch;
-      
-      // Second, look up the friendly name from FIELD_CATALOG and try that
+      // Get friendly name from catalog if available
+      let friendlyName = null;
       if (catalogKey && FIELD_CATALOG[catalogKey]) {
         const catalogEntry = FIELD_CATALOG[catalogKey].find(entry => entry.f === fieldName);
         if (catalogEntry && catalogEntry.d) {
-          const friendlyMatch = findCol(headers, catalogEntry.d);
-          if (friendlyMatch !== -1) return friendlyMatch;
+          friendlyName = catalogEntry.d;
         }
+      }
+      
+      // Priority 1: Try exact match for field name
+      let idx = headers.findIndex(h => h.toLowerCase() === fieldName.toLowerCase());
+      if (idx !== -1) return idx;
+      
+      // Priority 2: Try exact match for friendly name
+      if (friendlyName) {
+        idx = headers.findIndex(h => h.toLowerCase() === friendlyName.toLowerCase());
+        if (idx !== -1) return idx;
+      }
+      
+      // Priority 3: Try starts-with match for field name
+      idx = headers.findIndex(h => h.toLowerCase().startsWith(fieldName.toLowerCase()));
+      if (idx !== -1) return idx;
+      
+      // Priority 4: Try starts-with match for friendly name
+      if (friendlyName) {
+        idx = headers.findIndex(h => h.toLowerCase().startsWith(friendlyName.toLowerCase()));
+        if (idx !== -1) return idx;
+      }
+      
+      // Priority 5: Try contains match for field name
+      idx = headers.findIndex(h => h.toLowerCase().includes(fieldName.toLowerCase()));
+      if (idx !== -1) return idx;
+      
+      // Priority 6: Try contains match for friendly name
+      if (friendlyName) {
+        idx = headers.findIndex(h => h.toLowerCase().includes(friendlyName.toLowerCase()));
+        if (idx !== -1) return idx;
       }
       
       return -1;
