@@ -1920,6 +1920,24 @@
       return headers.findIndex(h => h.trim().toLowerCase() === exactName.trim().toLowerCase());
     }
     
+    // Helper to find column using FIELD_CATALOG to try both field name and friendly name
+    function findColWithCatalog(headers, fieldName, catalogKey) {
+      // First, try the field name directly using findCol
+      const directMatch = findCol(headers, fieldName);
+      if (directMatch !== -1) return directMatch;
+      
+      // Second, look up the friendly name from FIELD_CATALOG and try that
+      if (catalogKey && FIELD_CATALOG[catalogKey]) {
+        const catalogEntry = FIELD_CATALOG[catalogKey].find(entry => entry.f === fieldName);
+        if (catalogEntry && catalogEntry.d) {
+          const friendlyMatch = findCol(headers, catalogEntry.d);
+          if (friendlyMatch !== -1) return friendlyMatch;
+        }
+      }
+      
+      return -1;
+    }
+    
     // Helper to sum numeric column WITH proper unit conversion
     function sumColumnWithConversion(rows, colIdx) {
       if (colIdx === -1) return 0;
@@ -1992,12 +2010,12 @@
     // Aggregate sizes from show-space
     let totalSize = 0, totalUsed = 0, physUsed = 0, volFootprints = 0, snapSizeTotal = 0, percentSnapshotSpace = 0;
     if (aggSpaceData.rows.length > 0) {
-      const sizeCol = findExactCol(aggSpaceData.headers, "Size");
-      const usedCol = findExactCol(aggSpaceData.headers, "Total Used");
-      const physUsedCol = findExactCol(aggSpaceData.headers, "Total Physical Used Size");
-      const volFootprintsCol = findCol(aggSpaceData.headers, "volume-footprints", "Volume Footprints");
-      const snapSizeTotalCol = findCol(aggSpaceData.headers, "snap-size-total", "Snapshot Total");
-      const percentSnapCol = findCol(aggSpaceData.headers, "percent-snapshot-space");
+      const sizeCol = findColWithCatalog(aggSpaceData.headers, "aggregate-size", "fieldsAggSpace");
+      const usedCol = findColWithCatalog(aggSpaceData.headers, "used-including-snapshot-reserve", "fieldsAggSpace");
+      const physUsedCol = findColWithCatalog(aggSpaceData.headers, "physical-used", "fieldsAggSpace");
+      const volFootprintsCol = findColWithCatalog(aggSpaceData.headers, "volume-footprints", "fieldsAggSpace");
+      const snapSizeTotalCol = findColWithCatalog(aggSpaceData.headers, "snap-size-total", "fieldsAggSpace");
+      const percentSnapCol = findColWithCatalog(aggSpaceData.headers, "percent-snapshot-space", "fieldsAggSpace");
       
       if (sizeCol !== -1) {
         totalSize = sumColumnWithConversion(aggSpaceData.rows, sizeCol);
@@ -2111,13 +2129,13 @@
     let isEstimated = false;
     
     if (aggEffData.rows.length > 0) {
-      // Try to get data from efficiency paste
-      const ratioCol = findCol(aggEffData.headers, "total-storage-efficiency-ratio");
-      const dataReductionCol = findCol(aggEffData.headers, "total-data-reduction-efficiency-ratio-wo-snapshots");
-      const volLogicalCol = findCol(aggEffData.headers, "volume-logical-used");
-      const volPhysicalCol = findCol(aggEffData.headers, "volume-physical-used");
-      const dedupRatioCol = findCol(aggEffData.headers, "volume-efficiency-saved-ratio");
-      const compRatioCol = findCol(aggEffData.headers, "volume-compression-saved-ratio");
+      // Try to get data from efficiency paste using FIELD_CATALOG
+      const ratioCol = findColWithCatalog(aggEffData.headers, "total-storage-efficiency-ratio", "fieldsAggEfficiency");
+      const dataReductionCol = findColWithCatalog(aggEffData.headers, "total-data-reduction-efficiency-ratio-wo-snapshots", "fieldsAggEfficiency");
+      const volLogicalCol = findColWithCatalog(aggEffData.headers, "volume-logical-used", "fieldsAggEfficiency");
+      const volPhysicalCol = findColWithCatalog(aggEffData.headers, "volume-physical-used", "fieldsAggEfficiency");
+      const dedupRatioCol = findColWithCatalog(aggEffData.headers, "volume-efficiency-saved-ratio", "fieldsAggEfficiency");
+      const compRatioCol = findColWithCatalog(aggEffData.headers, "volume-compression-saved-ratio", "fieldsAggEfficiency");
       
       // For multiple aggregates, sum the logical and physical used
       for (let i = 0; i < aggEffData.rows.length; i++) {
@@ -2261,10 +2279,10 @@
     if (aggEffData.rows.length > 0) {
       addSectionHeader("Storage Efficiency by Aggregate");
       
-      // Find the column indices
-      const aggNameCol = findCol(aggEffData.headers, "aggregate");
-      const totalEffRatioCol = findCol(aggEffData.headers, "total-storage-efficiency-ratio");
-      const dataReductionRatioCol = findCol(aggEffData.headers, "total-data-reduction-efficiency-ratio-wo-snapshots");
+      // Find the column indices using FIELD_CATALOG for both field name and friendly name
+      const aggNameCol = findColWithCatalog(aggEffData.headers, "aggregate", "fieldsAggEfficiency");
+      const totalEffRatioCol = findColWithCatalog(aggEffData.headers, "total-storage-efficiency-ratio", "fieldsAggEfficiency");
+      const dataReductionRatioCol = findColWithCatalog(aggEffData.headers, "total-data-reduction-efficiency-ratio-wo-snapshots", "fieldsAggEfficiency");
       
       // Check if we have the required columns
       if (aggNameCol !== -1 && (totalEffRatioCol !== -1 || dataReductionRatioCol !== -1)) {
