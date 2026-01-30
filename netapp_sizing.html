@@ -2388,6 +2388,20 @@
         addLineWithDesc("Total Available Space", formatBytes(totalAvail), "Total available space across all volumes.");
       }
       
+      // Logical space breakdown
+      const logicalUsedByAfsCol = findColWithCatalog(volData.headers, "logical-used-by-afs", "fieldsVol");
+      const logicalUsedBySnapshotsCol = findColWithCatalog(volData.headers, "logical-used-by-snapshots", "fieldsVol");
+      
+      if (logicalUsedByAfsCol !== -1) {
+        const totalLogicalAfs = sumColumnWithConversion(volData.rows, logicalUsedByAfsCol);
+        addLineWithDesc("Logical Size Used by Active Filesystem", formatBytes(totalLogicalAfs), "Logical space used by active file system data.");
+      }
+      
+      if (logicalUsedBySnapshotsCol !== -1) {
+        const totalLogicalSnapshots = sumColumnWithConversion(volData.rows, logicalUsedBySnapshotsCol);
+        addLineWithDesc("Logical Size Used by All Snapshots", formatBytes(totalLogicalSnapshots), "Logical space used by all snapshot copies.");
+      }
+      
       // Count by type if available
       const typeCol = findCol(volData.headers, "type", "volume-style");
       if (typeCol !== -1) {
