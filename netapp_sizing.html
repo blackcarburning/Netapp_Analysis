@@ -1920,6 +1920,19 @@
       return headers.findIndex(h => h.trim().toLowerCase() === exactName.trim().toLowerCase());
     }
     
+    // Find column by EXACT match only - no contains fallback
+    function findExactMatchCol(headers, ...candidates) {
+      for (const candidate of candidates) {
+        if (!candidate) continue;
+        const lc = candidate.toLowerCase().trim();
+        for (let i = 0; i < headers.length; i++) {
+          const h = headers[i].toLowerCase().trim();
+          if (h === lc) return i;
+        }
+      }
+      return -1;
+    }
+    
     // Helper to find column using FIELD_CATALOG to try both field name and friendly name
     function findColWithCatalog(headers, fieldName, catalogKey) {
       // Get friendly name from catalog if available
@@ -2036,9 +2049,10 @@
     // Aggregate sizes from show-space
     let totalSize = 0, totalUsed = 0, physUsed = 0, volFootprints = 0, snapSizeTotal = 0, percentSnapshotSpace = 0;
     if (aggSpaceData.rows.length > 0) {
-      const sizeCol = findColWithCatalog(aggSpaceData.headers, "aggregate-size", "fieldsAggSpace");
-      const usedCol = findColWithCatalog(aggSpaceData.headers, "used-including-snapshot-reserve", "fieldsAggSpace");
-      const physUsedCol = findColWithCatalog(aggSpaceData.headers, "physical-used", "fieldsAggSpace");
+      // Use exact matching only - these friendly names are exact from ONTAP
+      const sizeCol = findExactMatchCol(aggSpaceData.headers, "aggregate-size", "Size");
+      const usedCol = findExactMatchCol(aggSpaceData.headers, "used-including-snapshot-reserve", "Total Used");
+      const physUsedCol = findExactMatchCol(aggSpaceData.headers, "physical-used", "Total Physical Used Size");
       const volFootprintsCol = findColWithCatalog(aggSpaceData.headers, "volume-footprints", "fieldsAggSpace");
       const snapSizeTotalCol = findColWithCatalog(aggSpaceData.headers, "snap-size-total", "fieldsAggSpace");
       const percentSnapCol = findColWithCatalog(aggSpaceData.headers, "percent-snapshot-space", "fieldsAggSpace");
