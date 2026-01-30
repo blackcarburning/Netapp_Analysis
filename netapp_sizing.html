@@ -2402,6 +2402,12 @@
       yPos += 10;
     }
     
+    // Check for page overflow before long section
+    if (yPos > 220) {
+      doc.addPage();
+      yPos = 20;
+    }
+    
     // Add "Why use logical data?" section
     doc.setFont(undefined, 'bold');
     doc.text("Why use logical data?", margin, yPos);
@@ -2424,6 +2430,12 @@
     doc.text(lines3, margin, yPos);
     yPos += lines3.length * 5 + 6;
     
+    // Check for page overflow before summary
+    if (yPos > 250) {
+      doc.addPage();
+      yPos = 20;
+    }
+    
     // Add summary section
     doc.setFont(undefined, 'bold');
     doc.text("Summary:", margin, yPos);
@@ -2440,7 +2452,7 @@
       yPos += 5;
     }
     
-    if (totalUsed > 0 && physUsed > 0) {
+    if (totalUsed > 0 && physUsed > 0 && totalUsed >= physUsed) {
       const savingsAmount = totalUsed - physUsed;
       const savingsPercent = ((savingsAmount / totalUsed) * 100).toFixed(0);
       doc.text(`- Efficiency Savings: ${formatBytes(savingsAmount)} (${savingsPercent}%)`, margin + 2, yPos);
